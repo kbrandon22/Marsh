@@ -35,7 +35,7 @@ setwd("C:\\Users\\Kristin\\Documents\\Multispecies Occupancy\\Data Analysis\\R c
 #3. Configure Git
 use_git_config(user.name = "kbrandon22", user.email = "kristin.brandon22@gmail.com")
 use_git()
-system("git --version")
+proj_get()
 
 #-------------------------------------------------------------------------------
 #DATA MANAGEMENT
