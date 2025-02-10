@@ -34,7 +34,7 @@ setwd("C:\\Users\\Kristin\\Documents\\Multispecies Occupancy\\Data Analysis\\R c
 
 #3. Configure Git
 use_git_config(user.name = "kbrandon22", user.email = "kristin.brandon22@gmail.com")
-use_git()
+use_github()
 
 #-------------------------------------------------------------------------------
 #DATA MANAGEMENT
@@ -771,107 +771,6 @@ for(i in seq_along(null_models)){
 null_det
     #Rrav detection is 0.38, Rmeg is 0.30, Mmus is 0.36, Mcal is 0.11
     #Detection probabilities are low, consider modeling with covariates (e.g., Effort, Year)
-
-#-------------------------------------------------------------------------------
-#################################REDO WHEN TOP MODEL IS IDENTIFIED###################################
-
-#CALCULATE PREDICTED OCCUPANCY AND DETECTION PROBABILITIES
-
-#1. Occupancy
-#a. Predict probability for each occupancy state
-null_occ_probs <- lapply(null_models, function(null_models){
-  all_probs <- predict(null_models, newdata = data.frame(site=1),type="state")
-  return(all_probs)
-})
-null_occ_probs[[1]]$Predicted
-
-#b. Calculate predicted marginal occupancy for each species at specific sites (across all possible occupancy states)
-null_occ_preds <- lapply(null_models, function(null_models){
-  rrav_occ <- predict(null_models, newdata = data.frame(site=1), type="state", species="Rrav")
-  rmeg_occ <- predict(null_models, newdata = data.frame(site=1), type="state", species="Rmeg")
-  mmus_occ <- predict(null_models, newdata = data.frame(site=1), type="state", species="Mmus")
-  mcal_occ <- predict(null_models, newdata = data.frame(site=1), type="state", species="Mcal")
-  all_occ <- rbind(rrav_occ[1,], rmeg_occ[1,], mmus_occ[1,], mcal_occ[1,])
-  all_occ$Species <- c("Rrav", "Rmeg", "Mmus", "Mcal")
-  return(all_occ)
-})
-null_occ_preds[[1]]$Predicted
-
-#c. Pool the results
-null_occ_pooled <- do.call(rbind, lapply(split(do.call(rbind, null_occ_preds), f = ~ Species), function(species_data){
-  mean_pred <- colMeans(species_data[, c("Predicted", "lower", "upper")], na.rm = TRUE)
-  return(data.frame(Species = unique(species_data$Species), Predicted = mean_pred["Predicted"],
-                    lower = mean_pred["lower"], upper = mean_pred["upper"]))
-}))
-null_occ_pooled$Species <- factor(null_occ_pooled$Species, levels = c("Rrav", "Rmeg", "Mmus", "Mcal"))
-null_occ_pooled
-#Rrav = 0.507, lower = 0.454, upper = 0.559
-#Rmeg = 0.500, lower = 0.442, upper = 0.555
-#Mmus = 0.678, lower = 0.618, upper = 0.726
-#Mcal = 0.342, lower = 0.274, upper = 0.416
-
-#d. Visualize marginal occupancy for all species
-level_order <- c("Rrav", "Rmeg", "Mmus", "Mcal")
-
-ggplot(null_occ_pooled, aes(x=factor(Species, level=level_order), y=Predicted)) +
-  geom_point(size=3) + 
-  geom_errorbar(aes(ymin=lower, ymax=upper), width=0.3) +
-  ylim(0.2,1) +
-  labs(x="Species", y="Marginal occupancy and 95% CI") +
-  theme(axis.title.y=element_text(size=14, vjust=4),
-        axis.title.x=element_text(size=14, vjust=-0.5),
-        axis.text.x=element_text(color="black", size=14),
-        axis.text.y=element_text(color="black", size=14),
-        axis.line.x=element_line(color="black", linewidth=0.5),
-        axis.line.y=element_line(color="black", linewidth=0.5)) +
-  theme(panel.background=element_rect(fill='transparent', color=NA),
-        panel.grid.minor=element_blank(),
-        panel.grid.major=element_blank()) +
-  theme(plot.margin=unit(c(1,1,1,1), "cm"))
-
-#-----
-#2. Detection
-#a. Calculate predicted marginal detection for each species 
-null_det_preds <- lapply(null_models, function(null_models){
-  rrav_det <- predict(null_models, newdata = data.frame(site=1), type="det", species="Rrav")
-  rmeg_det <- predict(null_models, newdata = data.frame(site=1), type="det", species="Rmeg")
-  mmus_det <- predict(null_models, newdata = data.frame(site=1), type="det", species="Mmus")
-  mcal_det <- predict(null_models, newdata = data.frame(site=1), type="det", species="Mcal")
-  all_det <- rbind(rrav_det[1,], rmeg_det[1,], mmus_det[1,], mcal_det[1,])
-  all_det$Species <- c("Rrav", "Rmeg", "Mmus", "Mcal")
-  return(all_det)
-})
-null_det_preds[[1]]$Predicted
-
-#b. Pool the results
-null_det_pooled <- do.call(rbind, lapply(split(do.call(rbind, null_det_preds), f = ~ Species), function(species_data){
-  mean_pred <- colMeans(species_data[, c("Predicted", "lower", "upper")], na.rm = TRUE)
-  return(data.frame(Species = unique(species_data$Species), Predicted = mean_pred["Predicted"],
-                    lower = mean_pred["lower"], upper = mean_pred["upper"]))
-}))
-null_det_pooled$Species <- factor(null_det_pooled$Species, levels = c("Rrav", "Rmeg", "Mmus", "Mcal"))
-null_det_pooled
-#Rrav = 0.380, lower = 0.361, upper = 0.400
-#Rmeg = 0.271, lower = 0.252, upper = 0.290
-#Mmus = 0.367, lower = 0.350, upper = 0.384
-#Mcal = 0.094, lower = 0.075, upper = 0.116
-
-#c. Visualize detection probabilities for all species
-ggplot(null_det_pooled, aes(x=factor(Species, level=level_order), y=Predicted)) +
-  geom_point(size=3) + 
-  geom_errorbar(aes(ymin=lower, ymax=upper), width=0.3) +
-  ylim(0.05,1) +
-  labs(x="Species", y="Detection probability and 95% CI") +
-  theme(axis.title.y=element_text(size=14, vjust=4),
-        axis.title.x=element_text(size=14, vjust=-0.5),
-        axis.text.x=element_text(color="black", size=14),
-        axis.text.y=element_text(color="black", size=14),
-        axis.line.x=element_line(color="black", linewidth=0.5),
-        axis.line.y=element_line(color="black", linewidth=0.5)) +
-  theme(panel.background=element_rect(fill='transparent', color=NA),
-        panel.grid.minor=element_blank(),
-        panel.grid.major=element_blank()) +
-  theme(plot.margin=unit(c(1,1,1,1), "cm"))
 
 #-------------------------------------------------------------------------------
 #MULTISPECIES DETECTION
@@ -1816,5 +1715,101 @@ ggplot(mcal_data, aes(Species_status, Predicted)) +
                      labels=c("Mmus", "Rmeg", "Rrav")) +
   guides(color=guide_legend(title="Species"))
 
-#################################REDO WHEN TOP MODEL IS IDENTIFIED###################################
+#-------------------------------------------------------------------------------
+#CALCULATE PREDICTED OCCUPANCY AND DETECTION PROBABILITIES
 
+#1. Occupancy
+#a. Predict probability for each occupancy state
+null_occ_probs <- lapply(null_models, function(null_models){
+  all_probs <- predict(null_models, newdata = data.frame(site=1),type="state")
+  return(all_probs)
+})
+null_occ_probs[[1]]$Predicted
+
+#b. Calculate predicted marginal occupancy for each species at specific sites (across all possible occupancy states)
+null_occ_preds <- lapply(null_models, function(null_models){
+  rrav_occ <- predict(null_models, newdata = data.frame(site=1), type="state", species="Rrav")
+  rmeg_occ <- predict(null_models, newdata = data.frame(site=1), type="state", species="Rmeg")
+  mmus_occ <- predict(null_models, newdata = data.frame(site=1), type="state", species="Mmus")
+  mcal_occ <- predict(null_models, newdata = data.frame(site=1), type="state", species="Mcal")
+  all_occ <- rbind(rrav_occ[1,], rmeg_occ[1,], mmus_occ[1,], mcal_occ[1,])
+  all_occ$Species <- c("Rrav", "Rmeg", "Mmus", "Mcal")
+  return(all_occ)
+})
+null_occ_preds[[1]]$Predicted
+
+#c. Pool the results
+null_occ_pooled <- do.call(rbind, lapply(split(do.call(rbind, null_occ_preds), f = ~ Species), function(species_data){
+  mean_pred <- colMeans(species_data[, c("Predicted", "lower", "upper")], na.rm = TRUE)
+  return(data.frame(Species = unique(species_data$Species), Predicted = mean_pred["Predicted"],
+                    lower = mean_pred["lower"], upper = mean_pred["upper"]))
+}))
+null_occ_pooled$Species <- factor(null_occ_pooled$Species, levels = c("Rrav", "Rmeg", "Mmus", "Mcal"))
+null_occ_pooled
+#Rrav = 0.507, lower = 0.454, upper = 0.559
+#Rmeg = 0.500, lower = 0.442, upper = 0.555
+#Mmus = 0.678, lower = 0.618, upper = 0.726
+#Mcal = 0.342, lower = 0.274, upper = 0.416
+
+#d. Visualize marginal occupancy for all species
+level_order <- c("Rrav", "Rmeg", "Mmus", "Mcal")
+
+ggplot(null_occ_pooled, aes(x=factor(Species, level=level_order), y=Predicted)) +
+  geom_point(size=3) + 
+  geom_errorbar(aes(ymin=lower, ymax=upper), width=0.3) +
+  ylim(0.2,1) +
+  labs(x="Species", y="Marginal occupancy and 95% CI") +
+  theme(axis.title.y=element_text(size=14, vjust=4),
+        axis.title.x=element_text(size=14, vjust=-0.5),
+        axis.text.x=element_text(color="black", size=14),
+        axis.text.y=element_text(color="black", size=14),
+        axis.line.x=element_line(color="black", linewidth=0.5),
+        axis.line.y=element_line(color="black", linewidth=0.5)) +
+  theme(panel.background=element_rect(fill='transparent', color=NA),
+        panel.grid.minor=element_blank(),
+        panel.grid.major=element_blank()) +
+  theme(plot.margin=unit(c(1,1,1,1), "cm"))
+
+#-----
+#2. Detection
+#a. Calculate predicted marginal detection for each species 
+null_det_preds <- lapply(null_models, function(null_models){
+  rrav_det <- predict(null_models, newdata = data.frame(site=1), type="det", species="Rrav")
+  rmeg_det <- predict(null_models, newdata = data.frame(site=1), type="det", species="Rmeg")
+  mmus_det <- predict(null_models, newdata = data.frame(site=1), type="det", species="Mmus")
+  mcal_det <- predict(null_models, newdata = data.frame(site=1), type="det", species="Mcal")
+  all_det <- rbind(rrav_det[1,], rmeg_det[1,], mmus_det[1,], mcal_det[1,])
+  all_det$Species <- c("Rrav", "Rmeg", "Mmus", "Mcal")
+  return(all_det)
+})
+null_det_preds[[1]]$Predicted
+
+#b. Pool the results
+null_det_pooled <- do.call(rbind, lapply(split(do.call(rbind, null_det_preds), f = ~ Species), function(species_data){
+  mean_pred <- colMeans(species_data[, c("Predicted", "lower", "upper")], na.rm = TRUE)
+  return(data.frame(Species = unique(species_data$Species), Predicted = mean_pred["Predicted"],
+                    lower = mean_pred["lower"], upper = mean_pred["upper"]))
+}))
+null_det_pooled$Species <- factor(null_det_pooled$Species, levels = c("Rrav", "Rmeg", "Mmus", "Mcal"))
+null_det_pooled
+#Rrav = 0.380, lower = 0.361, upper = 0.400
+#Rmeg = 0.271, lower = 0.252, upper = 0.290
+#Mmus = 0.367, lower = 0.350, upper = 0.384
+#Mcal = 0.094, lower = 0.075, upper = 0.116
+
+#c. Visualize detection probabilities for all species
+ggplot(null_det_pooled, aes(x=factor(Species, level=level_order), y=Predicted)) +
+  geom_point(size=3) + 
+  geom_errorbar(aes(ymin=lower, ymax=upper), width=0.3) +
+  ylim(0.05,1) +
+  labs(x="Species", y="Detection probability and 95% CI") +
+  theme(axis.title.y=element_text(size=14, vjust=4),
+        axis.title.x=element_text(size=14, vjust=-0.5),
+        axis.text.x=element_text(color="black", size=14),
+        axis.text.y=element_text(color="black", size=14),
+        axis.line.x=element_line(color="black", linewidth=0.5),
+        axis.line.y=element_line(color="black", linewidth=0.5)) +
+  theme(panel.background=element_rect(fill='transparent', color=NA),
+        panel.grid.minor=element_blank(),
+        panel.grid.major=element_blank()) +
+  theme(plot.margin=unit(c(1,1,1,1), "cm"))
