@@ -89,7 +89,7 @@ summary(imp)
 #d. Perform diagnostics and summarize imputation effectiveness with plots
 plot(imp, layout = c(1,2))   
 mice::stripplot(imp, Above_MHW ~.imp, pch = 20, cex = 2)
-#All imputed values (in red) are among observed values (in blue) and are therefore plausible
+    #All imputed values (in red) are among observed values (in blue) and are therefore plausible
 
 #e. Extract imputed data sets
 imputed <- lapply(1:imp$m, function(i) complete(imp, i))
@@ -182,10 +182,10 @@ ggplot(rodent_imp[[1]], aes(x = Connectivity, y = Occupancy)) +
        x = "Connectivity", 
        y = "Occupancy Probability") +
   theme_minimal()
-#NOTE: For each species, all covariates exhibit cubic or higher-order 
-#polynomial relationships with occupancy. However, due to difficulty in 
-#interpreting these relationships, select only those that are biologically
-#relevant to test with AIC
+    #NOTE: For each species, all covariates exhibit cubic or higher-order 
+    #polynomial relationships with occupancy. However, due to difficulty in 
+    #interpreting these relationships, select only those that are biologically
+    #relevant to test with AIC
 
 #----------
 ################EXCLUDE???###################
@@ -279,8 +279,8 @@ pooled_results <- transform_covs(
   transformations = transformations
 )
 pooled_results
-#Linear connectivity is a better predictor of Rmeg occupancy and log area is a better predictor
-#of Rrav occupancy, but all other independent variables have delta AIC <=2
+    #Linear connectivity is a better predictor of Rmeg occupancy and log area is a better predictor
+    #of Rrav occupancy, but all other independent variables have delta AIC <=2
 
 ####################KEEP, EXCLUDE TRANSFORM#########################
 #f. Scale and transform independent variables (as needed)
@@ -340,7 +340,7 @@ for(species in species_list){
   vif_results[[species]] <- dep_vif
 }
 vif_results
-#No collinearity between independent variables, okay to keep all in model
+    #No collinearity between independent variables, okay to keep all in model
 
 #----------
 #4. Explore non-additive effects of interactions
@@ -375,8 +375,8 @@ preds_coefs <- lapply(seq_along(conn_area_models), function(i){
 preds_df <- bind_rows(lapply(preds_coefs, `[[`, "preds"))
 coefs_df <- bind_rows(lapply(preds_coefs, `[[`, "coefs"))
 coefs_df
-#There is evidence of an interaction (p < 0.05), although estimates are small
-#Plot to confirm
+    #There is evidence of an interaction (p < 0.05), although estimates are small
+    #Plot to confirm
 
 #3) Visualize the interaction as it relates to occupancy, holding one covariate constant
 #a) Fit the linear model to the list of imputed data sets
@@ -463,9 +463,9 @@ ggplot(plot_data, aes(x = ifelse(Variable == "Area", Area, Connectivity),
   facet_wrap(Imp~Species, scales = "free_x", nrow = 10, ncol = 4) +
   theme(strip.text = element_text(size = 8),
         panel.spacing = unit(1, "lines"))
-#The interaction between connectivity and area likely exists, as evidenced by 
-#the intersecting lines. It is weakest for Mcal and the directionality changes 
-#based on the species. 
+    #The interaction between connectivity and area likely exists, as evidenced by 
+    #the intersecting lines. It is weakest for Mcal and the directionality changes 
+    #based on the species. 
 
 #-------------------------------------------------------------------------------
 #FORMULATE THE DATA
@@ -577,7 +577,7 @@ fit_null_models <- function(umf_list, stateformulas, detformulas){
 #b. Apply the function
 null_models <- fit_null_models(umf_list, stateformulas, detformulas)              
 summary(null_models[[1]])
-#Standard errors are high in relation to estimates, assess GOF and apply penalized likelihood if necessary
+    #Standard errors are high in relation to estimates, assess GOF and apply penalized likelihood if necessary
 
 #-----
 #2. Assess goodness-of-fit on model residuals
@@ -648,7 +648,7 @@ pool_fitstats <- function(pool_fit){
 #2) Apply the function
 null_fit_pooled <- pool_fitstats(null_fit)
 null_fit_pooled
-#Model is a good fit (all p > 0.05, c-hat ~1)
+    #Model is a good fit (all p > 0.05, c-hat ~1)
 
 #-----
 #3. Calculate 95% confidence intervals
@@ -710,11 +710,11 @@ pool_results <- function(model_list, ci_list, weights = NULL) {
 #b. Apply the function
 null_results <- pool_results(null_models, null_model_ci)
 null_results
-#Notable findings:
-#1. Mcal occupancy and detectability is the lowest of the four species
-#2. Rrav and Rmeg are not likely to occupy the same sites
-#3. Rrav:Mmus, Rmeg:Mcal, and Mmus:Mcal are likely to occupy the same sites
-#4. Detection is highest for Rrav but followed closely by Mmus
+    #Notable findings:
+      #1. Mcal occupancy and detectability is the lowest of the four species
+      #2. Rrav and Rmeg are not likely to occupy the same sites
+      #3. Rrav:Mmus, Rmeg:Mcal, and Mmus:Mcal are likely to occupy the same sites
+      #4. Detection is highest for Rrav but followed closely by Mmus
 
 #-----
 #5. Back-transform to get occupancy and detection estimates
@@ -742,7 +742,7 @@ for(i in seq_along(null_models)){
   )
 }
 null_occ
-#Rrav occupancy is 0.39, Rmeg is 0.38, Mmus is 0.49, Mcal is 0.15
+    #Rrav occupancy is 0.39, Rmeg is 0.38, Mmus is 0.49, Mcal is 0.15
 
 #b. Detection
 null_det <- list()
@@ -769,8 +769,8 @@ for(i in seq_along(null_models)){
   rownames(null_det[[i]]) <- rownames(det_estimates)
 }
 null_det
-#Rrav detection is 0.38, Rmeg is 0.30, Mmus is 0.36, Mcal is 0.11
-#Detection probabilities are low, consider modeling with covariates (e.g., Effort, Year)
+    #Rrav detection is 0.38, Rmeg is 0.30, Mmus is 0.36, Mcal is 0.11
+    #Detection probabilities are low, consider modeling with covariates (e.g., Effort, Year)
 
 #-------------------------------------------------------------------------------
 #################################REDO WHEN TOP MODEL IS IDENTIFIED###################################
@@ -873,290 +873,6 @@ ggplot(null_det_pooled, aes(x=factor(Species, level=level_order), y=Predicted)) 
         panel.grid.major=element_blank()) +
   theme(plot.margin=unit(c(1,1,1,1), "cm"))
 
-#-------------------------------------------------------------------------------
-#CALCULATE CONDITIONAL OCCUPANCY PROBABILITIES
-
-#1. Predict the probability of occupancy of one species conditional on another species' presence
-cond_occ <- lapply(null_models, function(null_models){
-  rrav_rmeg <- predict(null_models, newdata = data.frame(site=1), type="state", species="Rrav", cond="Rmeg")
-  rrav_mmus <- predict(null_models, newdata = data.frame(site=1), type="state", species="Rrav", cond="Mmus")
-  rrav_mcal <- predict(null_models, newdata = data.frame(site=1), type="state", species="Rrav", cond="Mcal")
-  rmeg_rrav <- predict(null_models, newdata = data.frame(site=1), type="state", species="Rmeg", cond="Rrav")
-  rmeg_mmus <- predict(null_models, newdata = data.frame(site=1), type="state", species="Rmeg", cond="Mmus")
-  rmeg_mcal <- predict(null_models, newdata = data.frame(site=1), type="state", species="Rmeg", cond="Mcal")
-  mmus_rrav <- predict(null_models, newdata = data.frame(site=1), type="state", species="Mmus", cond="Rrav")
-  mmus_rmeg <- predict(null_models, newdata = data.frame(site=1), type="state", species="Mmus", cond="Rmeg")
-  mmus_mcal <- predict(null_models, newdata = data.frame(site=1), type="state", species="Mmus", cond="Mcal")
-  mcal_rrav <- predict(null_models, newdata = data.frame(site=1), type="state", species="Mcal", cond="Rrav")
-  mcal_rmeg <- predict(null_models, newdata = data.frame(site=1), type="state", species="Mcal", cond="Rmeg")
-  mcal_mmus <- predict(null_models, newdata = data.frame(site=1), type="state", species="Mcal", cond="Mmus")
-  all_cond_occ <- rbind(rrav_rmeg[1,], rrav_mmus[1,], rrav_mcal[1,], rmeg_rrav[1,], rmeg_mmus[1,], rmeg_mcal[1,],
-                        mmus_rrav[1,], mmus_rmeg[1,], mmus_mcal[1,], mcal_rrav[1,], mcal_rmeg[1,], mcal_mmus[1,])
-  all_cond_occ$Species <- c("Rrav_Rmeg", "Rrav_Mmus", "Rrav_Mcal", "Rmeg_Rrav", "Rmeg_Mmus", "Rmeg_Mcal",
-                            "Mmus_Rrav", "Mmus_Rmeg", "Mmus_Mcal", "Mcal_Rrav", "Mcal_Rmeg", "Mcal_Mmus")
-  return(all_cond_occ)
-})
-cond_occ[[1]]$Predicted
-
-#b. Pool the results
-cond_occ_pooled <- do.call(rbind, lapply(split(do.call(rbind, cond_occ), f = ~ Species), function(species_data){
-  mean_pred <- colMeans(species_data[, c("Predicted", "SE", "lower", "upper")], na.rm = TRUE)
-  return(data.frame(Species = unique(species_data$Species), Predicted = mean_pred["Predicted"],
-                    SE = mean_pred["SE"], lower = mean_pred["lower"], upper = mean_pred["upper"]))
-}))
-cond_occ_pooled$Species <- factor(cond_occ_pooled$Species, levels = c("Rrav_Rmeg", "Rrav_Mmus", "Rrav_Mcal", "Rmeg_Rrav", "Rmeg_Mmus", "Rmeg_Mcal",
-                                                                      "Mmus_Rrav", "Mmus_Rmeg", "Mmus_Mcal", "Mcal_Rrav", "Mcal_Rmeg", "Mcal_Mmus"))
-cond_occ_pooled
-#Mcal is neutrally associated with Mmus (40%) and Rmeg (51%) and negatively associated with Rrav (33%)
-#Mmus is positively associated with all species (Mcal: 80%, Rmeg: 73%, Rrav: 77%)
-#Rmeg is positively associated with Mcal (75%) and neutrally with Mmus (54%) and Rrav (40%) 
-#Rrav is neutrally associated with all species (Mcal: 50%, Mmus: 57%, Rmeg: 41%) 
-
-#----------
-#2. Predict the probability of occupancy of one species conditional on another species' absence 
-abs_occ <- lapply(null_models, function(null_models){
-  rrav_normeg <- predict(null_models, newdata = data.frame(site=1), type="state", species="Rrav", cond="-Rmeg")
-  rrav_nommus <- predict(null_models, newdata = data.frame(site=1), type="state", species="Rrav", cond="-Mmus")
-  rrav_nomcal <- predict(null_models, newdata = data.frame(site=1), type="state", species="Rrav", cond="-Mcal")
-  rmeg_norrav <- predict(null_models, newdata = data.frame(site=1), type="state", species="Rmeg", cond="-Rrav")
-  rmeg_nommus <- predict(null_models, newdata = data.frame(site=1), type="state", species="Rmeg", cond="-Mmus")
-  rmeg_nomcal <- predict(null_models, newdata = data.frame(site=1), type="state", species="Rmeg", cond="-Mcal")
-  mmus_norrav <- predict(null_models, newdata = data.frame(site=1), type="state", species="Mmus", cond="-Rrav")
-  mmus_normeg <- predict(null_models, newdata = data.frame(site=1), type="state", species="Mmus", cond="-Rmeg")
-  mmus_nomcal <- predict(null_models, newdata = data.frame(site=1), type="state", species="Mmus", cond="-Mcal")
-  mcal_norrav <- predict(null_models, newdata = data.frame(site=1), type="state", species="Mcal", cond="-Rrav")
-  mcal_normeg <- predict(null_models, newdata = data.frame(site=1), type="state", species="Mcal", cond="-Rmeg")
-  mcal_nommus <- predict(null_models, newdata = data.frame(site=1), type="state", species="Mcal", cond="-Mmus")
-  all_abs_occ <- rbind(rrav_normeg[1,], rrav_nommus[1,], rrav_nomcal[1,], rmeg_norrav[1,], rmeg_nommus[1,], rmeg_nomcal[1,],
-                       mmus_norrav[1,], mmus_normeg[1,], mmus_nomcal[1,], mcal_norrav[1,], mcal_normeg[1,], mcal_nommus[1,])
-  all_abs_occ$Species <- c("Rrav_NoRmeg", "Rrav_NoMmus", "Rrav_NoMcal", "Rmeg_NoRrav", "Rmeg_NoMmus", "Rmeg_NoMcal",
-                           "Mmus_NoRrav", "Mmus_NoRmeg", "Mmus_NoMcal", "Mcal_NoRrav", "Mcal_NoRmeg", "Mcal_NoMmus")
-  return(all_abs_occ)
-})
-abs_occ[[1]]$Predicted
-
-#b. Pool the results
-abs_occ_pooled <- do.call(rbind, lapply(split(do.call(rbind, abs_occ), f = ~ Species), function(species_data){
-  mean_pred <- colMeans(species_data[, c("Predicted", "SE", "lower", "upper")], na.rm = TRUE)
-  return(data.frame(Species = unique(species_data$Species), Predicted = mean_pred["Predicted"],
-                    SE = mean_pred["SE"], lower = mean_pred["lower"], upper = mean_pred["upper"]))
-}))
-abs_occ_pooled$Species <- factor(abs_occ_pooled$Species, levels = c("Rrav_NoRmeg", "Rrav_NoMmus", "Rrav_NoMcal", "Rmeg_NoRrav", "Rmeg_NoMmus", "Rmeg_NoMcal",
-                                                                    "Mmus_NoRrav", "Mmus_NoRmeg", "Mmus_NoMcal", "Mcal_NoRrav", "Mcal_NoRmeg", "Mcal_NoMmus"))
-abs_occ_pooled
-#Mcal is not likely to be present when Mmus (21%), Rmeg (17%), and Rrav (34%) are absent
-#Mmus occupancy is not associated with Mcal (61%), Rmeg (62%), or Rrav (59%) absence
-#Rmeg is not likely to be present when Mcal is absent (37%), but there is no association with Rrav (60%) or Mmus (41%) absence
-#Rrav is not likely to be present when Mmus (37%) is absent and occupancy is not associated with Mcal (51%) or Rmeg (61%) absence
-
-#----------
-#3. Visualize naive conditional occupancy of all species pairs
-#a. Rrav conditional on other species
-#1) Create a vector of conditional relationships
-rrav_species_pairs <- c("Rrav_Rmeg", "Rrav_NoRmeg", "Rrav_Mmus", "Rrav_NoMmus", "Rrav_Mcal", "Rrav_NoMcal")
-
-#2) Create a list to store the results
-rrav_list <- list() 
-
-#3) Loop through the pooled results to extract the predicted values for each combination of conditional relationships
-for(pair in rrav_species_pairs){
-  pred_cond_occ <- cond_occ_pooled[cond_occ_pooled$Species == pair,]
-  pred_abs_occ <- abs_occ_pooled[abs_occ_pooled$Species == pair,]
-  combined <- data.frame(
-    Species = pair,
-    Predicted = c(pred_cond_occ$Predicted, pred_abs_occ$Predicted),
-    SE = c(pred_cond_occ$SE, pred_abs_occ$SE),
-    lower = c(pred_cond_occ$lower, pred_abs_occ$lower),
-    upper = c(pred_cond_occ$upper, pred_abs_occ$upper)
-  )
-  rrav_list[[pair]] <- combined
-}
-rrav_list
-
-#4) Combine results in a data frame
-rrav_data <- do.call(rbind, rrav_list)
-rrav_data$Species_status <- c("Present", "Absent", "Present", "Absent", "Present", "Absent")
-rrav_data
-
-#5) Plot results
-colors <- c("#2E4D2E", "#7E8050", "#BA8D61", "#BF6534")
-
-rrav_data$Species_simple <- gsub("Rrav_", "", rrav_data$Species)
-rrav_data$Species_simple <- gsub("No", "", rrav_data$Species_simple)
-
-ggplot(rrav_data, aes(Species_status, Predicted)) +
-  geom_point(aes(color=Species_simple), size=3, position=position_dodge(width=0.4)) +
-  geom_errorbar(aes(ymin=lower, ymax=upper, color=Species_simple), linewidth=0.8, width=0.25, position=position_dodge(width=0.4)) +
-  ylim(0,1) +
-  labs(x="Species status", y="Conditional occupancy probability") +
-  theme(axis.title.y=element_text(size=14, vjust=4),
-        axis.title.x=element_text(size=14, vjust=-0.5),
-        axis.text.x=element_text(color="black", size=14),
-        axis.text.y=element_text(color="black", size=14),
-        axis.line.x=element_line(color="black", linewidth=0.5),
-        axis.line.y=element_line(color="black", linewidth=0.5)) +
-  theme(panel.background=element_rect(fill='transparent', color=NA),
-        panel.grid.minor=element_blank(),
-        panel.grid.major=element_blank()) +
-  theme(plot.margin=unit(c(1,1,1,1), "cm")) +
-  scale_color_manual(values=c("Mcal" = colors[4], "Rmeg" = colors[2], "Mmus" = colors[3]),
-                     labels=c("Mcal", "Mmus", "Rmeg")) +
-  guides(color=guide_legend(title="Species"))
-
-#-----
-#b. Rmeg conditional on other species
-#1) Create a vector of conditional relationships
-rmeg_species_pairs <- c("Rmeg_Rrav", "Rmeg_NoRrav", "Rmeg_Mmus", "Rmeg_NoMmus", "Rmeg_Mcal", "Rmeg_NoMcal")
-
-#2) Create a list to store the results
-rmeg_list <- list() 
-
-#3) Loop through the pooled results to extract the predicted values for each combination of conditional relationships
-for(pair in rmeg_species_pairs){
-  pred_cond_occ <- cond_occ_pooled[cond_occ_pooled$Species == pair,]
-  pred_abs_occ <- abs_occ_pooled[abs_occ_pooled$Species == pair,]
-  combined <- data.frame(
-    Species = pair,
-    Predicted = c(pred_cond_occ$Predicted, pred_abs_occ$Predicted),
-    SE = c(pred_cond_occ$SE, pred_abs_occ$SE),
-    lower = c(pred_cond_occ$lower, pred_abs_occ$lower),
-    upper = c(pred_cond_occ$upper, pred_abs_occ$upper)
-  )
-  rmeg_list[[pair]] <- combined
-}
-rmeg_list
-
-#4) Combine results in a data frame
-rmeg_data <- do.call(rbind, rmeg_list)
-rmeg_data$Species_status <- c("Present", "Absent", "Present", "Absent", "Present", "Absent")
-rmeg_data
-
-#5) Plot results
-rmeg_data$Species_simple <- gsub("Rmeg_", "", rmeg_data$Species)
-rmeg_data$Species_simple <- gsub("No", "", rmeg_data$Species_simple)
-
-ggplot(rmeg_data, aes(Species_status, Predicted)) +
-  geom_point(aes(color=Species_simple), size=3, position=position_dodge(width=0.4)) +
-  geom_errorbar(aes(ymin=lower, ymax=upper, color=Species_simple), linewidth=0.8, width=0.3, position=position_dodge(width=0.4)) +
-  ylim(0,1) +
-  labs(x="Species status", y="Conditional occupancy probability") +
-  theme(axis.title.y=element_text(size=14, vjust=4),
-        axis.title.x=element_text(size=14, vjust=-0.5),
-        axis.text.x=element_text(color="black", size=14),
-        axis.text.y=element_text(color="black", size=14),
-        axis.line.x=element_line(color="black", linewidth=0.5),
-        axis.line.y=element_line(color="black", linewidth=0.5)) +
-  theme(panel.background=element_rect(fill='transparent', color=NA),
-        panel.grid.minor=element_blank(),
-        panel.grid.major=element_blank()) +
-  theme(plot.margin=unit(c(1,1,1,1), "cm")) +
-  scale_color_manual(values=c("Mcal" = colors[4], "Mmus" = colors[3], "Rrav" = colors[1]),
-                     labels=c("Mcal", "Mmus", "Rrav")) +
-  guides(color=guide_legend(title="Species"))
-
-#-----
-#c. Mmus conditional on other species
-#1) Create a vector of conditional relationships
-mmus_species_pairs <- c("Mmus_Rrav", "Mmus_NoRrav", "Mmus_Rmeg", "Mmus_NoRmeg", "Mmus_Mcal", "Mmus_NoMcal")
-
-#2) Create a list to store the results
-mmus_list <- list() 
-
-#3) Loop through the pooled results to extract the predicted values for each combination of conditional relationships
-for(pair in mmus_species_pairs){
-  pred_cond_occ <- cond_occ_pooled[cond_occ_pooled$Species == pair,]
-  pred_abs_occ <- abs_occ_pooled[abs_occ_pooled$Species == pair,]
-  combined <- data.frame(
-    Species = pair,
-    Predicted = c(pred_cond_occ$Predicted, pred_abs_occ$Predicted),
-    SE = c(pred_cond_occ$SE, pred_abs_occ$SE),
-    lower = c(pred_cond_occ$lower, pred_abs_occ$lower),
-    upper = c(pred_cond_occ$upper, pred_abs_occ$upper)
-  )
-  mmus_list[[pair]] <- combined
-}
-mmus_list
-
-#4) Combine results in a data frame
-mmus_data <- do.call(rbind, mmus_list)
-mmus_data$Species_status <- c("Present", "Absent", "Present", "Absent", "Present", "Absent")
-mmus_data
-
-#5) Plot results
-mmus_data$Species_simple <- gsub("Mmus_", "", mmus_data$Species)
-mmus_data$Species_simple <- gsub("No", "", mmus_data$Species_simple)
-
-ggplot(mmus_data, aes(Species_status, Predicted)) +
-  geom_point(aes(color=Species_simple), size=3, position=position_dodge(width=0.4)) +
-  geom_errorbar(aes(ymin=lower, ymax=upper, color=Species_simple), linewidth=0.8, width=0.3, position=position_dodge(width=0.4)) +
-  ylim(0,1) +
-  labs(x="Species status", y="Conditional occupancy probability") +
-  theme(axis.title.y=element_text(size=14, vjust=4),
-        axis.title.x=element_text(size=14, vjust=-0.5),
-        axis.text.x=element_text(color="black", size=14),
-        axis.text.y=element_text(color="black", size=14),
-        axis.line.x=element_line(color="black", linewidth=0.5),
-        axis.line.y=element_line(color="black", linewidth=0.5)) +
-  theme(panel.background=element_rect(fill='transparent', color=NA),
-        panel.grid.minor=element_blank(),
-        panel.grid.major=element_blank()) +
-  theme(plot.margin=unit(c(1,1,1,1), "cm")) +
-  scale_color_manual(values=c("Mcal" = colors[4], "Rmeg" = colors[2], "Rrav" = colors[1]),
-                     labels=c("Mcal", "Rmeg", "Rrav")) +
-  guides(color=guide_legend(title="Species"))
-
-#-----
-#d. Mcal conditional on other species
-#1) Create a vector of conditional relationships
-mcal_species_pairs <- c("Mcal_Rrav", "Mcal_NoRrav", "Mcal_Rmeg", "Mcal_NoRmeg", "Mcal_Mmus", "Mcal_NoMmus")
-
-#2) Create a list to store the results
-mcal_list <- list() 
-
-#3) Loop through the pooled results to extract the predicted values for each combination of conditional relationships
-for(pair in mcal_species_pairs){
-  pred_cond_occ <- cond_occ_pooled[cond_occ_pooled$Species == pair,]
-  pred_abs_occ <- abs_occ_pooled[abs_occ_pooled$Species == pair,]
-  combined <- data.frame(
-    Species = pair,
-    Predicted = c(pred_cond_occ$Predicted, pred_abs_occ$Predicted),
-    SE = c(pred_cond_occ$SE, pred_abs_occ$SE),
-    lower = c(pred_cond_occ$lower, pred_abs_occ$lower),
-    upper = c(pred_cond_occ$upper, pred_abs_occ$upper)
-  )
-  mcal_list[[pair]] <- combined
-}
-mcal_list
-
-#4) Combine results in a data frame
-mcal_data <- do.call(rbind, mcal_list)
-mcal_data$Species_status <- c("Present", "Absent", "Present", "Absent", "Present", "Absent")
-mcal_data
-
-#5) Plot results
-mcal_data$Species_simple <- gsub("Mcal_", "", mcal_data$Species)
-mcal_data$Species_simple <- gsub("No", "", mcal_data$Species_simple)
-
-ggplot(mcal_data, aes(Species_status, Predicted)) +
-  geom_point(aes(color=Species_simple), size=3, position=position_dodge(width=0.4)) +
-  geom_errorbar(aes(ymin=lower, ymax=upper, color=Species_simple), linewidth=0.8, width=0.3, position=position_dodge(width=0.4)) +
-  ylim(0,1) +
-  labs(x="Species status", y="Conditional occupancy probability") +
-  theme(axis.title.y=element_text(size=14, vjust=4),
-        axis.title.x=element_text(size=14, vjust=-0.5),
-        axis.text.x=element_text(color="black", size=14),
-        axis.text.y=element_text(color="black", size=14),
-        axis.line.x=element_line(color="black", linewidth=0.5),
-        axis.line.y=element_line(color="black", linewidth=0.5)) +
-  theme(panel.background=element_rect(fill='transparent', color=NA),
-        panel.grid.minor=element_blank(),
-        panel.grid.major=element_blank()) +
-  theme(plot.margin=unit(c(1,1,1,1), "cm")) +
-  scale_color_manual(values=c("Mmus" = colors[3], "Rmeg" = colors[2], "Rrav" = colors[1]),
-                     labels=c("Mmus", "Rmeg", "Rrav")) +
-  guides(color=guide_legend(title="Species"))
-
-#################################REDO WHEN TOP MODEL IS IDENTIFIED###################################
 #-------------------------------------------------------------------------------
 #MULTISPECIES DETECTION
 
@@ -1816,4 +1532,289 @@ legend('topleft', col=c("X","Y","Z","A"), lty=1,
 #-----
 #2. Plot the effect of covariates on conditional occupancy
 #a. Calculate species occupancy when another species is present, repeating for each covariate
+
+#-------------------------------------------------------------------------------
+#CALCULATE CONDITIONAL OCCUPANCY PROBABILITIES
+
+#1. Predict the probability of occupancy of one species conditional on another species' presence
+cond_occ <- lapply(null_models, function(null_models){
+  rrav_rmeg <- predict(null_models, newdata = data.frame(site=1), type="state", species="Rrav", cond="Rmeg")
+  rrav_mmus <- predict(null_models, newdata = data.frame(site=1), type="state", species="Rrav", cond="Mmus")
+  rrav_mcal <- predict(null_models, newdata = data.frame(site=1), type="state", species="Rrav", cond="Mcal")
+  rmeg_rrav <- predict(null_models, newdata = data.frame(site=1), type="state", species="Rmeg", cond="Rrav")
+  rmeg_mmus <- predict(null_models, newdata = data.frame(site=1), type="state", species="Rmeg", cond="Mmus")
+  rmeg_mcal <- predict(null_models, newdata = data.frame(site=1), type="state", species="Rmeg", cond="Mcal")
+  mmus_rrav <- predict(null_models, newdata = data.frame(site=1), type="state", species="Mmus", cond="Rrav")
+  mmus_rmeg <- predict(null_models, newdata = data.frame(site=1), type="state", species="Mmus", cond="Rmeg")
+  mmus_mcal <- predict(null_models, newdata = data.frame(site=1), type="state", species="Mmus", cond="Mcal")
+  mcal_rrav <- predict(null_models, newdata = data.frame(site=1), type="state", species="Mcal", cond="Rrav")
+  mcal_rmeg <- predict(null_models, newdata = data.frame(site=1), type="state", species="Mcal", cond="Rmeg")
+  mcal_mmus <- predict(null_models, newdata = data.frame(site=1), type="state", species="Mcal", cond="Mmus")
+  all_cond_occ <- rbind(rrav_rmeg[1,], rrav_mmus[1,], rrav_mcal[1,], rmeg_rrav[1,], rmeg_mmus[1,], rmeg_mcal[1,],
+                        mmus_rrav[1,], mmus_rmeg[1,], mmus_mcal[1,], mcal_rrav[1,], mcal_rmeg[1,], mcal_mmus[1,])
+  all_cond_occ$Species <- c("Rrav_Rmeg", "Rrav_Mmus", "Rrav_Mcal", "Rmeg_Rrav", "Rmeg_Mmus", "Rmeg_Mcal",
+                            "Mmus_Rrav", "Mmus_Rmeg", "Mmus_Mcal", "Mcal_Rrav", "Mcal_Rmeg", "Mcal_Mmus")
+  return(all_cond_occ)
+})
+cond_occ[[1]]$Predicted
+
+#b. Pool the results
+cond_occ_pooled <- do.call(rbind, lapply(split(do.call(rbind, cond_occ), f = ~ Species), function(species_data){
+  mean_pred <- colMeans(species_data[, c("Predicted", "SE", "lower", "upper")], na.rm = TRUE)
+  return(data.frame(Species = unique(species_data$Species), Predicted = mean_pred["Predicted"],
+                    SE = mean_pred["SE"], lower = mean_pred["lower"], upper = mean_pred["upper"]))
+}))
+cond_occ_pooled$Species <- factor(cond_occ_pooled$Species, levels = c("Rrav_Rmeg", "Rrav_Mmus", "Rrav_Mcal", "Rmeg_Rrav", "Rmeg_Mmus", "Rmeg_Mcal",
+                                                                      "Mmus_Rrav", "Mmus_Rmeg", "Mmus_Mcal", "Mcal_Rrav", "Mcal_Rmeg", "Mcal_Mmus"))
+cond_occ_pooled
+#Mcal is neutrally associated with Mmus (40%) and Rmeg (51%) and negatively associated with Rrav (33%)
+#Mmus is positively associated with all species (Mcal: 80%, Rmeg: 73%, Rrav: 77%)
+#Rmeg is positively associated with Mcal (75%) and neutrally with Mmus (54%) and Rrav (40%) 
+#Rrav is neutrally associated with all species (Mcal: 50%, Mmus: 57%, Rmeg: 41%) 
+
+#----------
+#2. Predict the probability of occupancy of one species conditional on another species' absence 
+abs_occ <- lapply(null_models, function(null_models){
+  rrav_normeg <- predict(null_models, newdata = data.frame(site=1), type="state", species="Rrav", cond="-Rmeg")
+  rrav_nommus <- predict(null_models, newdata = data.frame(site=1), type="state", species="Rrav", cond="-Mmus")
+  rrav_nomcal <- predict(null_models, newdata = data.frame(site=1), type="state", species="Rrav", cond="-Mcal")
+  rmeg_norrav <- predict(null_models, newdata = data.frame(site=1), type="state", species="Rmeg", cond="-Rrav")
+  rmeg_nommus <- predict(null_models, newdata = data.frame(site=1), type="state", species="Rmeg", cond="-Mmus")
+  rmeg_nomcal <- predict(null_models, newdata = data.frame(site=1), type="state", species="Rmeg", cond="-Mcal")
+  mmus_norrav <- predict(null_models, newdata = data.frame(site=1), type="state", species="Mmus", cond="-Rrav")
+  mmus_normeg <- predict(null_models, newdata = data.frame(site=1), type="state", species="Mmus", cond="-Rmeg")
+  mmus_nomcal <- predict(null_models, newdata = data.frame(site=1), type="state", species="Mmus", cond="-Mcal")
+  mcal_norrav <- predict(null_models, newdata = data.frame(site=1), type="state", species="Mcal", cond="-Rrav")
+  mcal_normeg <- predict(null_models, newdata = data.frame(site=1), type="state", species="Mcal", cond="-Rmeg")
+  mcal_nommus <- predict(null_models, newdata = data.frame(site=1), type="state", species="Mcal", cond="-Mmus")
+  all_abs_occ <- rbind(rrav_normeg[1,], rrav_nommus[1,], rrav_nomcal[1,], rmeg_norrav[1,], rmeg_nommus[1,], rmeg_nomcal[1,],
+                       mmus_norrav[1,], mmus_normeg[1,], mmus_nomcal[1,], mcal_norrav[1,], mcal_normeg[1,], mcal_nommus[1,])
+  all_abs_occ$Species <- c("Rrav_NoRmeg", "Rrav_NoMmus", "Rrav_NoMcal", "Rmeg_NoRrav", "Rmeg_NoMmus", "Rmeg_NoMcal",
+                           "Mmus_NoRrav", "Mmus_NoRmeg", "Mmus_NoMcal", "Mcal_NoRrav", "Mcal_NoRmeg", "Mcal_NoMmus")
+  return(all_abs_occ)
+})
+abs_occ[[1]]$Predicted
+
+#b. Pool the results
+abs_occ_pooled <- do.call(rbind, lapply(split(do.call(rbind, abs_occ), f = ~ Species), function(species_data){
+  mean_pred <- colMeans(species_data[, c("Predicted", "SE", "lower", "upper")], na.rm = TRUE)
+  return(data.frame(Species = unique(species_data$Species), Predicted = mean_pred["Predicted"],
+                    SE = mean_pred["SE"], lower = mean_pred["lower"], upper = mean_pred["upper"]))
+}))
+abs_occ_pooled$Species <- factor(abs_occ_pooled$Species, levels = c("Rrav_NoRmeg", "Rrav_NoMmus", "Rrav_NoMcal", "Rmeg_NoRrav", "Rmeg_NoMmus", "Rmeg_NoMcal",
+                                                                    "Mmus_NoRrav", "Mmus_NoRmeg", "Mmus_NoMcal", "Mcal_NoRrav", "Mcal_NoRmeg", "Mcal_NoMmus"))
+abs_occ_pooled
+#Mcal is not likely to be present when Mmus (21%), Rmeg (17%), and Rrav (34%) are absent
+#Mmus occupancy is not associated with Mcal (61%), Rmeg (62%), or Rrav (59%) absence
+#Rmeg is not likely to be present when Mcal is absent (37%), but there is no association with Rrav (60%) or Mmus (41%) absence
+#Rrav is not likely to be present when Mmus (37%) is absent and occupancy is not associated with Mcal (51%) or Rmeg (61%) absence
+
+#----------
+#3. Visualize naive conditional occupancy of all species pairs
+#a. Rrav conditional on other species
+#1) Create a vector of conditional relationships
+rrav_species_pairs <- c("Rrav_Rmeg", "Rrav_NoRmeg", "Rrav_Mmus", "Rrav_NoMmus", "Rrav_Mcal", "Rrav_NoMcal")
+
+#2) Create a list to store the results
+rrav_list <- list() 
+
+#3) Loop through the pooled results to extract the predicted values for each combination of conditional relationships
+for(pair in rrav_species_pairs){
+  pred_cond_occ <- cond_occ_pooled[cond_occ_pooled$Species == pair,]
+  pred_abs_occ <- abs_occ_pooled[abs_occ_pooled$Species == pair,]
+  combined <- data.frame(
+    Species = pair,
+    Predicted = c(pred_cond_occ$Predicted, pred_abs_occ$Predicted),
+    SE = c(pred_cond_occ$SE, pred_abs_occ$SE),
+    lower = c(pred_cond_occ$lower, pred_abs_occ$lower),
+    upper = c(pred_cond_occ$upper, pred_abs_occ$upper)
+  )
+  rrav_list[[pair]] <- combined
+}
+rrav_list
+
+#4) Combine results in a data frame
+rrav_data <- do.call(rbind, rrav_list)
+rrav_data$Species_status <- c("Present", "Absent", "Present", "Absent", "Present", "Absent")
+rrav_data
+
+#5) Plot results
+colors <- c("#2E4D2E", "#7E8050", "#BA8D61", "#BF6534")
+
+rrav_data$Species_simple <- gsub("Rrav_", "", rrav_data$Species)
+rrav_data$Species_simple <- gsub("No", "", rrav_data$Species_simple)
+
+ggplot(rrav_data, aes(Species_status, Predicted)) +
+  geom_point(aes(color=Species_simple), size=3, position=position_dodge(width=0.4)) +
+  geom_errorbar(aes(ymin=lower, ymax=upper, color=Species_simple), linewidth=0.8, width=0.25, position=position_dodge(width=0.4)) +
+  ylim(0,1) +
+  labs(x="Species status", y="Conditional occupancy probability") +
+  theme(axis.title.y=element_text(size=14, vjust=4),
+        axis.title.x=element_text(size=14, vjust=-0.5),
+        axis.text.x=element_text(color="black", size=14),
+        axis.text.y=element_text(color="black", size=14),
+        axis.line.x=element_line(color="black", linewidth=0.5),
+        axis.line.y=element_line(color="black", linewidth=0.5)) +
+  theme(panel.background=element_rect(fill='transparent', color=NA),
+        panel.grid.minor=element_blank(),
+        panel.grid.major=element_blank()) +
+  theme(plot.margin=unit(c(1,1,1,1), "cm")) +
+  scale_color_manual(values=c("Mcal" = colors[4], "Rmeg" = colors[2], "Mmus" = colors[3]),
+                     labels=c("Mcal", "Mmus", "Rmeg")) +
+  guides(color=guide_legend(title="Species"))
+
+#-----
+#b. Rmeg conditional on other species
+#1) Create a vector of conditional relationships
+rmeg_species_pairs <- c("Rmeg_Rrav", "Rmeg_NoRrav", "Rmeg_Mmus", "Rmeg_NoMmus", "Rmeg_Mcal", "Rmeg_NoMcal")
+
+#2) Create a list to store the results
+rmeg_list <- list() 
+
+#3) Loop through the pooled results to extract the predicted values for each combination of conditional relationships
+for(pair in rmeg_species_pairs){
+  pred_cond_occ <- cond_occ_pooled[cond_occ_pooled$Species == pair,]
+  pred_abs_occ <- abs_occ_pooled[abs_occ_pooled$Species == pair,]
+  combined <- data.frame(
+    Species = pair,
+    Predicted = c(pred_cond_occ$Predicted, pred_abs_occ$Predicted),
+    SE = c(pred_cond_occ$SE, pred_abs_occ$SE),
+    lower = c(pred_cond_occ$lower, pred_abs_occ$lower),
+    upper = c(pred_cond_occ$upper, pred_abs_occ$upper)
+  )
+  rmeg_list[[pair]] <- combined
+}
+rmeg_list
+
+#4) Combine results in a data frame
+rmeg_data <- do.call(rbind, rmeg_list)
+rmeg_data$Species_status <- c("Present", "Absent", "Present", "Absent", "Present", "Absent")
+rmeg_data
+
+#5) Plot results
+rmeg_data$Species_simple <- gsub("Rmeg_", "", rmeg_data$Species)
+rmeg_data$Species_simple <- gsub("No", "", rmeg_data$Species_simple)
+
+ggplot(rmeg_data, aes(Species_status, Predicted)) +
+  geom_point(aes(color=Species_simple), size=3, position=position_dodge(width=0.4)) +
+  geom_errorbar(aes(ymin=lower, ymax=upper, color=Species_simple), linewidth=0.8, width=0.3, position=position_dodge(width=0.4)) +
+  ylim(0,1) +
+  labs(x="Species status", y="Conditional occupancy probability") +
+  theme(axis.title.y=element_text(size=14, vjust=4),
+        axis.title.x=element_text(size=14, vjust=-0.5),
+        axis.text.x=element_text(color="black", size=14),
+        axis.text.y=element_text(color="black", size=14),
+        axis.line.x=element_line(color="black", linewidth=0.5),
+        axis.line.y=element_line(color="black", linewidth=0.5)) +
+  theme(panel.background=element_rect(fill='transparent', color=NA),
+        panel.grid.minor=element_blank(),
+        panel.grid.major=element_blank()) +
+  theme(plot.margin=unit(c(1,1,1,1), "cm")) +
+  scale_color_manual(values=c("Mcal" = colors[4], "Mmus" = colors[3], "Rrav" = colors[1]),
+                     labels=c("Mcal", "Mmus", "Rrav")) +
+  guides(color=guide_legend(title="Species"))
+
+#-----
+#c. Mmus conditional on other species
+#1) Create a vector of conditional relationships
+mmus_species_pairs <- c("Mmus_Rrav", "Mmus_NoRrav", "Mmus_Rmeg", "Mmus_NoRmeg", "Mmus_Mcal", "Mmus_NoMcal")
+
+#2) Create a list to store the results
+mmus_list <- list() 
+
+#3) Loop through the pooled results to extract the predicted values for each combination of conditional relationships
+for(pair in mmus_species_pairs){
+  pred_cond_occ <- cond_occ_pooled[cond_occ_pooled$Species == pair,]
+  pred_abs_occ <- abs_occ_pooled[abs_occ_pooled$Species == pair,]
+  combined <- data.frame(
+    Species = pair,
+    Predicted = c(pred_cond_occ$Predicted, pred_abs_occ$Predicted),
+    SE = c(pred_cond_occ$SE, pred_abs_occ$SE),
+    lower = c(pred_cond_occ$lower, pred_abs_occ$lower),
+    upper = c(pred_cond_occ$upper, pred_abs_occ$upper)
+  )
+  mmus_list[[pair]] <- combined
+}
+mmus_list
+
+#4) Combine results in a data frame
+mmus_data <- do.call(rbind, mmus_list)
+mmus_data$Species_status <- c("Present", "Absent", "Present", "Absent", "Present", "Absent")
+mmus_data
+
+#5) Plot results
+mmus_data$Species_simple <- gsub("Mmus_", "", mmus_data$Species)
+mmus_data$Species_simple <- gsub("No", "", mmus_data$Species_simple)
+
+ggplot(mmus_data, aes(Species_status, Predicted)) +
+  geom_point(aes(color=Species_simple), size=3, position=position_dodge(width=0.4)) +
+  geom_errorbar(aes(ymin=lower, ymax=upper, color=Species_simple), linewidth=0.8, width=0.3, position=position_dodge(width=0.4)) +
+  ylim(0,1) +
+  labs(x="Species status", y="Conditional occupancy probability") +
+  theme(axis.title.y=element_text(size=14, vjust=4),
+        axis.title.x=element_text(size=14, vjust=-0.5),
+        axis.text.x=element_text(color="black", size=14),
+        axis.text.y=element_text(color="black", size=14),
+        axis.line.x=element_line(color="black", linewidth=0.5),
+        axis.line.y=element_line(color="black", linewidth=0.5)) +
+  theme(panel.background=element_rect(fill='transparent', color=NA),
+        panel.grid.minor=element_blank(),
+        panel.grid.major=element_blank()) +
+  theme(plot.margin=unit(c(1,1,1,1), "cm")) +
+  scale_color_manual(values=c("Mcal" = colors[4], "Rmeg" = colors[2], "Rrav" = colors[1]),
+                     labels=c("Mcal", "Rmeg", "Rrav")) +
+  guides(color=guide_legend(title="Species"))
+
+#-----
+#d. Mcal conditional on other species
+#1) Create a vector of conditional relationships
+mcal_species_pairs <- c("Mcal_Rrav", "Mcal_NoRrav", "Mcal_Rmeg", "Mcal_NoRmeg", "Mcal_Mmus", "Mcal_NoMmus")
+
+#2) Create a list to store the results
+mcal_list <- list() 
+
+#3) Loop through the pooled results to extract the predicted values for each combination of conditional relationships
+for(pair in mcal_species_pairs){
+  pred_cond_occ <- cond_occ_pooled[cond_occ_pooled$Species == pair,]
+  pred_abs_occ <- abs_occ_pooled[abs_occ_pooled$Species == pair,]
+  combined <- data.frame(
+    Species = pair,
+    Predicted = c(pred_cond_occ$Predicted, pred_abs_occ$Predicted),
+    SE = c(pred_cond_occ$SE, pred_abs_occ$SE),
+    lower = c(pred_cond_occ$lower, pred_abs_occ$lower),
+    upper = c(pred_cond_occ$upper, pred_abs_occ$upper)
+  )
+  mcal_list[[pair]] <- combined
+}
+mcal_list
+
+#4) Combine results in a data frame
+mcal_data <- do.call(rbind, mcal_list)
+mcal_data$Species_status <- c("Present", "Absent", "Present", "Absent", "Present", "Absent")
+mcal_data
+
+#5) Plot results
+mcal_data$Species_simple <- gsub("Mcal_", "", mcal_data$Species)
+mcal_data$Species_simple <- gsub("No", "", mcal_data$Species_simple)
+
+ggplot(mcal_data, aes(Species_status, Predicted)) +
+  geom_point(aes(color=Species_simple), size=3, position=position_dodge(width=0.4)) +
+  geom_errorbar(aes(ymin=lower, ymax=upper, color=Species_simple), linewidth=0.8, width=0.3, position=position_dodge(width=0.4)) +
+  ylim(0,1) +
+  labs(x="Species status", y="Conditional occupancy probability") +
+  theme(axis.title.y=element_text(size=14, vjust=4),
+        axis.title.x=element_text(size=14, vjust=-0.5),
+        axis.text.x=element_text(color="black", size=14),
+        axis.text.y=element_text(color="black", size=14),
+        axis.line.x=element_line(color="black", linewidth=0.5),
+        axis.line.y=element_line(color="black", linewidth=0.5)) +
+  theme(panel.background=element_rect(fill='transparent', color=NA),
+        panel.grid.minor=element_blank(),
+        panel.grid.major=element_blank()) +
+  theme(plot.margin=unit(c(1,1,1,1), "cm")) +
+  scale_color_manual(values=c("Mmus" = colors[3], "Rmeg" = colors[2], "Rrav" = colors[1]),
+                     labels=c("Mmus", "Rmeg", "Rrav")) +
+  guides(color=guide_legend(title="Species"))
+
+#################################REDO WHEN TOP MODEL IS IDENTIFIED###################################
 
