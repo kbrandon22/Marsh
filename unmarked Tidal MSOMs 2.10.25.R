@@ -1159,7 +1159,26 @@ load("Bi_pen_models.Rdata")
 bi_pen_models[[1]]
 
 #-----
-#4. Adjust for overdispersion
+#4. Determine how much SEs shrank with penalization
+#a. Flatten the model outputs
+bi_models_list <- unlist(bi_models, recursive = FALSE)
+bi_pen_models_list <- unlist(bi_pen_models, recursive = FALSE)
+
+#b. Define a function to compute the inflation factor
+compute_vif <- function(models, pen_models){
+  se_pen_model <- lapply(pen_models, function(m) sqrt(diag(vcov(m))))
+  se_model <- lapply(models, function(m) sqrt(diag(vcov(m))))
+  var_pen_model <- do.call(rbind, se_pen_model)^2
+  var_model <- do.call(rbind, se_model)^2
+  vif <- mean(var_pen_model, na.rm = TRUE)/mean(var_model, na.rm = TRUE)
+  return(vif)
+}
+
+#b. Apply the function
+bi_models_vif <- compute_vif(bi_pen_models_list, bi_models_list)
+
+#-----
+#5. Adjust for overdispersion
 #a. Apply the adjustment by specifying c-hat (from global model)
 quasi_bi_results <- lapply(bi_pen_models, function(model_list){
   lapply(model_list, function(model){
@@ -1168,7 +1187,6 @@ quasi_bi_results <- lapply(bi_pen_models, function(model_list){
 })
 quasi_bi_results
 
-#-----
 #5. Pool the adjusted results with Rubin's rules, accounting for different penalties
 #a. Flatten the quasi-adjusted model output 
 quasi_bi_list <- unlist(quasi_bi_results, recursive = FALSE)
