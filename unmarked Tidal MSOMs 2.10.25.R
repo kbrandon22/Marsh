@@ -919,8 +919,8 @@ det_preds <- lapply(global_det_model, function(model) {
     ungroup()
 })
 print(det_preds[[1]], n = Inf)
-#Detection varies for each species based on Effort and Year, with detection probability 
-#for all species except Mmus being higher in 2020 than 2022
+    #Detection varies for each species based on Effort and Year, with detection probability 
+    #for all species except Mmus being higher in 2020 than 2022
 
 #c. Visualize trends in detection based on effort and year
 #1) Define the species
@@ -982,7 +982,7 @@ fit_global_models <- function(umf_list){
 #b. Apply the function
 global_models <- fit_global_models(umf_list)
 summary(global_models[[1]])
-#Several estimates and SEs are large, use penalized likelihood
+    #Several estimates and SEs are large, use penalized likelihood
 
 #-----
 #3. Fit the model with penalized likelihood
@@ -1026,13 +1026,13 @@ load("GOF_global_pen_models.Rdata")
 
 #e. Pool the results
 global_fit_pooled <- pool_fitstats(global_pen_fit)
-#Model is moderately overdispersed (Chi-square statistic = 0, c-hat = 1.77)
+    #Model is moderately overdispersed (Chi-square statistic = 0, c-hat = 1.77)
 
 #f. Model fit diagnostics (e.g., convergence, parameterization, SEs)
 checkConv(global_pen_models[[1]])            
 sapply(global_pen_models, extractCN)         #Condition numbers are relatively high, but model is likely not over-parameterized
 lapply(global_pen_models, checkParms)
-#Other fit diagnostics look okay, use c-hat to account for overdispersion
+    #Other fit diagnostics look okay, use c-hat to account for overdispersion
 
 #-----
 #5. Account for overdispersion with quasi-likelihood adjustment
@@ -1040,7 +1040,6 @@ lapply(global_pen_models, checkParms)
 quasi_global_results <- lapply(global_pen_models, function(model){
   summaryOD(model, c.hat = 1.77, conf.level = 0.95, out.type = "confint")
 })
-class(quasi_global_results[[1]])
 
 #b. Pool the results with Rubin's rules
 pooled_global_quasi_results <- pool_quasi(quasi_global_results)
@@ -1090,7 +1089,7 @@ quasi_uni_results
 #3. Pool the adjusted results with Rubin's rules
 #a. Flatten the quasi-adjusted model output 
 quasi_uni_list <- unlist(quasi_uni_results, recursive = FALSE)
-class(quasi_uni_list[[1]])
+class(quasi_uni_list)
 
 #b. Define a function to pool outputs for each independent variable
 pool_uni <- function(quasi_uni_list, pool_quasi){
@@ -1100,7 +1099,7 @@ pool_uni <- function(quasi_uni_list, pool_quasi){
   name <- unique(sub("\\d+$", "", names(quasi_uni_list)))
   uni_cov <- setNames(lapply(name, function(cov){
     quasi_uni_list[grep(paste0("^", cov), names(quasi_uni_list))]
-  }), cov_name)
+  }), name)
   
   #Pool the results
   for(cov in names(uni_cov)){
@@ -1123,7 +1122,7 @@ bi_combos <- combinat::combn(model_covs, 2, simplify = FALSE)
 
 #-----
 #2. Fit the models
-#a.  Define a function to fit the model
+#a. Define a function to fit the model
 fit_bi_models <- function(bi_combos, umf_list){
   models <- list()
   for(combo in bi_combos){
@@ -1136,7 +1135,7 @@ fit_bi_models <- function(bi_combos, umf_list){
         detformulas = as.character(rep("~Effort + Year", 4)),
         control = list(maxit = 5000),
         maxOrder = 2,
-        starts = rnorm(42, mean = 0, sd = 0.08),
+        starts = rnorm(42, mean = 0, sd = 0.15),
         data = umf_list[[i]]
       )
     }
@@ -1147,12 +1146,21 @@ fit_bi_models <- function(bi_combos, umf_list){
 
 #b. Apply the function
 bi_models <- fit_bi_models(bi_combos, umf_list)
-bi_models
+save(bi_models, file = "Bi_models.Rdata")
+load("Bi_models.Rdata")
+    #Several estimates and SEs are large, use penalized likelihood
 
 #-----
-#3. Adjust for overdispersion
+#3. Fit the model with penalized likelihood
+bi_pen_models <- lapply(bi_models, penalize_model)
+save(bi_pen_models, file = "Bi_pen_models.Rdata")
+load("Bi_pen_models.Rdata")
+bi_pen_models[[1]]
+
+#-----
+#4. Adjust for overdispersion
 #a. Apply the adjustment by specifying c-hat (from global model)
-quasi_bi_results <- lapply(bi_models, function(model_list){
+quasi_bi_results <- lapply(bi_pen_models, function(model_list){
   lapply(model_list, function(model){
     summaryOD(model, c.hat = 1.77, conf.level = 0.95, out.type = "confint")
   })
@@ -1160,7 +1168,7 @@ quasi_bi_results <- lapply(bi_models, function(model_list){
 quasi_bi_results
 
 #-----
-#4. Pool the adjusted results with Rubin's rules
+#5. Pool the adjusted results with Rubin's rules
 #a. Flatten the quasi-adjusted model output 
 quasi_bi_list <- unlist(quasi_bi_results, recursive = FALSE)
 
@@ -1208,7 +1216,7 @@ fit_tri_models <- function(tri_combos, umf_list){
         detformulas = as.character(rep("~Effort + Year", 4)),
         control = list(maxit = 5000),
         maxOrder = 2,
-        starts = rnorm(52, mean = 0, sd = 0.1),
+        starts = rnorm(52, mean = 0, sd = 0.075),
         data = umf_list[[i]]
       )
     }
