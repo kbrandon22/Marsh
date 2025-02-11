@@ -32,10 +32,6 @@ set.seed(500)
 #2. Set working directory 
 setwd("C:\\Users\\Kristin\\Documents\\Multispecies Occupancy\\Data Analysis\\R code\\Occupancy Models\\Marsh")
 
-#3. Configure Git
-use_git_config(user.name = "kbrandon22", user.email = "kristin.brandon22@gmail.com")
-use_github()
-
 #-------------------------------------------------------------------------------
 #DATA MANAGEMENT
 
@@ -651,29 +647,14 @@ null_fit_pooled
     #Model is a good fit (all p > 0.05, c-hat ~1)
 
 #-----
-#3. Calculate 95% confidence intervals
-null_model_ci <- lapply(null_models, function(model){
-  det_ci <- confint(model, type = "det")
-  state_ci <- confint(model, type = "state")
-  det_df <- as.data.frame(det_ci)
-  state_df <- as.data.frame(state_ci)
-  rbind(det_df, state_df)
-})
-null_model_ci
-
-#-----
-#4. Pool results with Rubin's rules for variance estimation
+#3. Pool results with Rubin's rules for variance estimation
 #a. Define a function to pool the results
 pool_results <- function(model_list, ci_list, weights = NULL) {
   coefs <- sapply(model_list, coef)
   se <- sapply(model_list, function(model) sqrt(diag(vcov(model))))
   z_values <- coefs / se
-  p_values <- 2 * (1 - pnorm(abs(z_values)))
+  p_values <- 2*(1 - pnorm(abs(z_values)))
   aic <- sapply(model_list, function(model) model@AIC)
-  
-  #Extract lower and upper confidence intervals
-  lower <- sapply(ci_list, function(ci) ci[,1])
-  upper <- sapply(ci_list, function(ci) ci[,2])
   
   #Calculate model weights based on AIC values
   if(is.null(weights)){
@@ -692,9 +673,9 @@ pool_results <- function(model_list, ci_list, weights = NULL) {
   #Pool results
   pooled_se <- sqrt(total_var)
   pooled_z <- pooled_coefs / pooled_se
-  pooled_p <- 2 * (1 - pnorm(abs(pooled_z)))
-  pooled_lower <- pooled_coefs - qnorm(0.975)*pooled_se
-  pooled_upper <- pooled_coefs + qnorm(0.975)*pooled_se
+  pooled_p <- 2*(1 - pnorm(abs(pooled_z)))
+  pooled_lower <- pooled_coefs - 1.96*pooled_se
+  pooled_upper <- pooled_coefs + 1.96*pooled_se
   
   #Return pooled results as a data frame, rounding to 5 decimal places
   data.frame(
@@ -841,14 +822,14 @@ id_best_model <- function(det){
 #b. Apply the function
 det_model <- id_best_model(det_models)
 det_model
-#Best fitting model is ~Effort + Year
+    #Best fitting model is ~Effort + Year
 
 #c. Compare null and detection models
 null_aic <- sapply(null_models, function(x) x@AIC)
 null_aic[[1]]
 det_aic <- sapply(det_model, function(x) x$AIC)
 det_aic[[1]]
-#The detection variables have improved model fit
+    #The detection variables have improved model fit
 
 #-----
 #3. Assess goodness-of-fit on model residuals
@@ -872,13 +853,13 @@ load("GOF_global_det_mod.Rdata")
 
 #e. Pool the results
 det_fit_pooled <- pool_fitstats(global_det_fit)
-#Model is moderately overdispersed (Chi-square statistic = 0, c-hat = 1.35)
+    #Model is moderately overdispersed (Chi-square statistic = 0, c-hat = 1.35)
 
 #f. Model fit diagnostics (e.g., convergence, parameterization, SEs)
 checkConv(global_det_model[[1]])            
 sapply(global_det_model, extractCN)         #Does not have excessively high condition numbers, likely not over-parameterized
 lapply(global_det_model, checkParms)    
-#Other fit diagnostics look okay, use c-hat to adjust for overdispersion
+    #Other fit diagnostics look okay, use c-hat to adjust for overdispersion
 
 #-----
 #4. Account for overdispersion with quasi-likelihood adjustment
@@ -903,7 +884,7 @@ pool_quasi <- function(quasi_list){
   pooled_estimate <- rowMeans(estimates)
   pooled_SE <- sqrt(total_var)
   pooled_z <- pooled_estimate / pooled_SE
-  pooled_p <- 2* (1-pnorm(abs(pooled_z)))
+  pooled_p <- 2*(1-pnorm(abs(pooled_z)))
   pooled_lower <- pooled_estimate - 1.96*pooled_SE
   pooled_upper <- pooled_estimate + 1.96*pooled_SE
   data.frame(
@@ -1270,64 +1251,6 @@ modnames <- c("null_model", "det_model", "global_model", "x")
 
 #b. Perform model selection 
 top_models <- aictab()
-
-#-------------------------------------------------------------------------------
-#MULTISPECIES OCCUPANCY MODELS FOR NON-TIDAL SITES
-
-#1. Formulate the data
-#a. Create detection/non-detection matrices
-#1) Subset non-tidal sites in the imputed data sets
-nontidal_filter <- type != "Tidal"
-
-#2) Extract species detection/non-detection 
-Rrav_nontidal <- Rrav[nontidal_filter, , drop = FALSE]
-Rmeg_nontidal <- Rmeg[nontidal_filter, , drop = FALSE]
-Mmus_nontidal <- Mmus[nontidal_filter, , drop = FALSE]
-Mcal_nontidal <- Mcal[nontidal_filter, , drop = FALSE]
-
-#3) Combine into a named list
-ylist_nontidal <- list(Rrav=Rrav_nontidal, Rmeg=Rmeg_nontidal, Mmus=Mmus_nontidal, Mcal=Mcal_nontidal)
-str(ylist_nontidal)  
-
-#b. Create a data frame of standardized independent variables
-#1) Define a function to extract the variables for the non-tidal sites and convert characters to factor
-extract_covs_nontidal <- function(data, scale_covs){
-  nontidal_data <- data[data$Type != "Tidal", covs, drop=FALSE]
-  nontidal_data[] <- lapply(names(nontidal_data), function(colname){
-    col <- nontidal_data[[colname]]
-    if(is.character(col)){
-      as.factor(col)
-    } else {
-      col
-    }
-  })
-  return(nontidal_data)
-}
-
-#2) Apply the function to each imputed data set
-sitecovs_nontidal <- lapply(rodent_imp, extract_covs_nontidal)
-
-#c. Create unmarkedFrameOccuMulti objects
-#1) Define a function to create the umf objects
-create_umf_nontidal <- function(ylist_tidal, sitecovs_nontidal) {
-  umf_list_nontidal <- list()
-  for (i in 1:length(sitecovs_nontidal)) {
-    umf_list_nontidal[[i]] <- unmarkedFrameOccuMulti(
-      y = ylist_nontidal, 
-      siteCovs = as.data.frame(sitecovs_nontidal[[i]])
-    )
-  }
-  return(umf_list_nonidal)
-}
-
-#2) Apply the function to create a list of umf objects
-umf_list_nontidal <- create_umf_nontidal(ylist_nontidal, sitecovs_nontidal)
-summary(umf_list_nontidal[[1]])
-
-#----------
-#2. Global model 
-#a. Define the independent variables
-model_covs_non <- c("Area", "Dist_urban", "Connectivity", "Connectivity:Area")
 
 
 #-------------------------------------------------------------------------------
