@@ -1036,12 +1036,13 @@ lapply(global_pen_models, checkParms)
 
 #-----
 #5. Account for overdispersion with quasi-likelihood adjustment
-#a. Apply the adjustment by specifying c-hat
 quasi_global_results <- lapply(global_pen_models, function(model){
   summaryOD(model, c.hat = 1.77, conf.level = 0.95, out.type = "confint")
 })
+quasi_global_results
 
-#b. Pool the results with Rubin's rules
+#-----
+#6. Pool the results with Rubin's rules, accounting for different penalties
 pooled_global_quasi_results <- pool_quasi(quasi_global_results)
 pooled_global_quasi_results
 
@@ -1168,7 +1169,7 @@ quasi_bi_results <- lapply(bi_pen_models, function(model_list){
 quasi_bi_results
 
 #-----
-#5. Pool the adjusted results with Rubin's rules
+#5. Pool the adjusted results with Rubin's rules, accounting for different penalties
 #a. Flatten the quasi-adjusted model output 
 quasi_bi_list <- unlist(quasi_bi_results, recursive = FALSE)
 
