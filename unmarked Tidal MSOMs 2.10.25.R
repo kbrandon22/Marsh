@@ -1043,78 +1043,12 @@ global_quasi_results <- lapply(global_pen_models, function(model){
 global_quasi_results
 
 #-----
-#6. Pool the results with Rubin's rules, correcting for shrinkage using VIF
-#a. Determine how much SEs shrank with penalization
-#1) Flatten the model outputs
-global_models_list <- unlist(global_models, recursive = FALSE)
-global_pen_models_list <- unlist(global_pen_models, recursive = FALSE)
-
-#2) Define a function to compute the inflation factor
-compute_vif <- function(models, pen_models){
-  se_pen_model <- lapply(pen_models, function(m) sqrt(diag(vcov(m))))
-  se_model <- lapply(models, function(m) sqrt(diag(vcov(m))))
-  var_pen_model <- do.call(rbind, se_pen_model)^2
-  var_model <- do.call(rbind, se_model)^2
-  vif <- colMeans(var_pen_model, na.rm = TRUE)/colMeans(var_model, na.rm = TRUE)
-  vif <- mean(vif, na.rm = TRUE)
-  return(vif)
-}
-
-#3) Apply the function
-global_models_vif <- compute_vif(global_pen_models_list, global_models_list)
-global_models_vif
-    #VIF is 2.45, use to account for variance when pooling
-
-#b. Adjust the quasi_pool function to inflate within-imputation variance
-pool_quasi_pen <- function(quasi_list, vif = global_models_vif){
-  estimates <- sapply(quasi_list, function(model) model$outMat[,1])
-  SE <- sapply(quasi_list, function(model) model$outMat[,2])
-  
-  #Calculate variance and adjust for VIF
-  within_var <- rowMeans(SE^2)
-  between_var <- apply(estimates, 1, var)
-  within_var_adj <- within_var*vif
-  total_var_adj <- within_var_adj + (1+1/length(quasi_list))*between_var
-  
-  #Pool the results
-  pooled_estimate <- rowMeans(estimates)
-  pooled_SE <- sqrt(total_var_adj)
-  pooled_z <- pooled_estimate / pooled_SE
-  pooled_p <- 2*(1-pnorm(abs(pooled_z)))
-  pooled_lower <- pooled_estimate - 1.96*pooled_SE
-  pooled_upper <- pooled_estimate + 1.96*pooled_SE
-  
-  #Return the pooled results in a data frame
-  data.frame(
-    Estimate = pooled_estimate,
-    SE = pooled_SE,
-    Z = pooled_z,
-    p_value = pooled_p,
-    Lower_CI = pooled_lower,
-    Upper_CI = pooled_upper
-  )
-}
-
-#c. Pool the results 
-pooled_global_quasi_results <- pool_quasi_pen(global_quasi_results, vif = global_models_vif)
+#6. Pool the results with Rubin's rules
+pooled_global_quasi_results <- pool_quasi(global_quasi_results)
 pooled_global_quasi_results
-    #Effort has a negative effect on Mmus detection
-    #Year has a negative effect on Mcal detection
-
-#Compare results without variance inflation
-pooled_global_quasi_results_check <- pool_quasi(global_quasi_results)
-
-comparison <- data.frame(
-  Estimate = pooled_global_quasi_results_check$Estimate,
-  SE = pooled_global_quasi_results_check$SE,
-  SE_Adj = pooled_global_quasi_results$SE,
-  Lower_CI = pooled_global_quasi_results_check$Lower_CI,
-  Lower_CI_Adj = pooled_global_quasi_results$Lower_CI,
-  Upper_CI = pooled_global_quasi_results_check$Upper_CI,
-  Upper_CI_Adj = pooled_global_quasi_results$Upper_CI
-)
-comparison
-
+    #Area, Connectivity, and Area:Connectivity positively affect occupancy of Rrav:Rmeg
+    #Effort negatively affects Mmus detection
+    #Year negatively affects Rmeg and Mcal detection
 
 #-------------------------------------------------------------------------------
 #UNIVARIATE MODELS
@@ -1160,7 +1094,6 @@ quasi_uni_results
 #3. Pool the adjusted results with Rubin's rules
 #a. Flatten the quasi-adjusted model output 
 quasi_uni_list <- unlist(quasi_uni_results, recursive = FALSE)
-class(quasi_uni_list)
 
 #b. Define a function to pool outputs for each independent variable
 pool_uni <- function(quasi_uni_list, pool_quasi){
@@ -1239,38 +1172,27 @@ quasi_bi_results <- lapply(bi_pen_models, function(model_list){
 quasi_bi_results
 
 #-----
-#5. Determine how much SEs shrank with penalization
-#a. Flatten the model outputs
-bi_models_list <- unlist(bi_models, recursive = FALSE)
-bi_pen_models_list <- unlist(bi_pen_models, recursive = FALSE)
-
-#b. Compute the inflation factor
-bi_models_vif <- compute_vif(bi_pen_models_list, bi_models_list)
-
-#-----
-#6. Modify the pool_quasi function to inflate within-imputation variance
-
-
-#-----
-#7. Pool the adjusted results with Rubin's rules, accounting for different penalties
+#5. Pool the adjusted results with Rubin's rules
 #a. Flatten the quasi-adjusted model output 
 quasi_bi_list <- unlist(quasi_bi_results, recursive = FALSE)
+names(quasi_bi_list)
 
 #b. Define a function to pool outputs for each independent variable
 pool_bi <- function(quasi_bi_list, pool_quasi){
   results <- list()
   
   #Extract and group the quasi output by independent variable
-  bi_names <- names(quasi_bi_list)
+  bi_names <- unique(sub("\\d+$", "", names(quasi_bi_list)))
   bi_pair <- setNames(lapply(bi_names, function(pair) {
-    quasi_bi_list[grep(pair, names(quasi_bi_list), fixed = TRUE)]
+    quasi_bi_list[grep(paste0("^", gsub("\\+", "\\\\+", pair), "[0-9]+$"), 
+                       names(quasi_bi_list), value = TRUE)]
   }), bi_names)
-  
+
   #Pool the results
   for(pair in names(bi_pair)){
     cov_data <- bi_pair[[pair]]
     pooled_results <- pool_quasi(cov_data)
-    results[[cov]] <- pooled_results
+    results[[pair]] <- pooled_results
   }
   return(results)
 }
