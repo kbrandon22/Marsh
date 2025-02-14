@@ -957,7 +957,7 @@ ggplot(det_preds_df, aes(x = Year, y = Predicted$Predicted, color = as.factor(Ye
   scale_color_manual(values = c("0" = "blue", "1" = "red"))
 
 #-------------------------------------------------------------------------------
-#GLOBAL MODEL
+#GLOBAL OCCUPANCY MODEL
 
 #1. Define the independent variables
 model_covs <- c("Area", "Dist_urban", "Above_MHW", "Connectivity", "Connectivity:Area")
@@ -1284,90 +1284,106 @@ tri_results
 #-------------------------------------------------------------------------------
 #MODEL SELECTION
 
-#1. Select the best-fitting model for interpretation
+#1. Select the best-fitting model(s) for interpretation
 #a. Store models in a list
 models <- list()
 
 
-#b. Assign names to each model
-modnames <- c("null_model", "det_model", "global_model", "x")
+#b. Assign names to each model and store in a list
+modnames <- c("null_model", "det_model", "global_model", "uni_model", "bi_model", "tri_model", "quad_model")
+modlist <- list("null_model" = null_model, "det_model" = det_model, "global_model" = global_model,
+                "uni_model" = uni_model, "bi_model" = bi_model, "tri_model" = tri_model, "quad_model" = quad_model) 
 
-#b. Perform model selection 
-top_models <- aictab()
+#c. Perform model selection 
+top_models <- aictab(cand.set = modlist, c.hat = 1.77)
 
+#2. Compare top fitting models (if more than one)
+#a. Use evidence ratio of Aikake weights to compare models
+evidence(aic.table = top_models)
+
+#b. Assess effect of significant parameters across the entire model set using model-averaging shrinkage estimator
+#1) On occupancy
+estX <- modavgShrink(cand.set = modlist, parm = "X", parm.type = "psi", c.hat = 1.77)     #Repeat for other significant predictors
+
+#2) On detection
+estY <- modavgShrink(cand.set = modelist, parm = "Y", parm.type = "detect", c.hat = 1.77)        #Repeat for other significant predictors
 
 #-------------------------------------------------------------------------------
 #PLOT COVARIATE EFFECTS
 
-#1. Plot the effect of covariates on marginal occupancy      
-#a. Define a vector of occupancy covariates
-occ_vars <- c("Dist_urban", "Above_MHW", "Conn_vars_PC1", "Conn_vars_PC2", "Frag_vars_PC1", "Frag_vars_PC2")
+#1. Plot the effect of the independent variables on marginal occupancy      
+#a. Review the occupancy variables
+model_covs
 
-#b. Create a function to generate a range of possible covariate values
-extract_range <- function(umf_list, occ_vars){
+#b. Explore covariate values
+#1) Define a function to generate a range of possible covariate values
+extract_range <- function(umf_list, model_covs){
   range <- list()
-  for(covariate in occ_vars){
+  for(cov in model_covs){
     cov_range <- list()
     for(i in seq_along(umf_list)){
-      cov_range[[i]] <- range(siteCovs(umf_list[[i]])[[covariate]], na.rm = TRUE)
+      cov_range[[i]] <- range(siteCovs(umf_list[[i]])[[cov]], na.rm = TRUE)
     }
-    range[[covariate]] <- cov_range
+    range[[cov]] <- cov_range
   }
   return(list(ranges = range))
 }
 
-#1) Apply the function
-range <- extract_range(umf_list, occ_vars)
+#2) Apply the function
+range <- extract_range(umf_list, model_covs)
 
-#c. Create a function to generate a sequence of possible covariate values based on the range
-extract_seq <- function(umf_list, occ_vars){
+#c. Explore covariate values based on the range
+#1) Define a function to generate a sequence of possible covariate values based on the range
+extract_seq <- function(umf_list, model_covs){
   seq <- list()
-  for(covariate in occ_vars){
+  for(cov in model_covs){
     seq_range <- list()
     for(i in seq_along(umf_list)){
       cov_seq[[i]] <- seq(range[[i]][1], range[[i]][2], length.out = 100)
     }
-    seq[[covariate]] <- cov_seq
+    seq[[cov]] <- cov_seq
   }
   return(list(sequences = seq))
 }
 
-#1) Apply the function
-seq <- extract_seq(umf_list, occ_vars)
+#2) Apply the function
+seq <- extract_seq(umf_list, model_covs)
 
-#d. Generate new data to assess how changes in a single covariate affect occupancy
-generate_data <- function(umf_list, occ_vars, range, seq){
+#d. Assess how changes in a single variable affect occupancy
+#1) Define a function to generate new data
+generate_data <- function(umf_list, model_covs, range, seq){
   new_data_list <- list()
-  for(covariate in occ_vars){
+  for(cov in model_covs){
     new_data <- data.frame()
     for(i in seq_along(umf_list)){
-      cov_seq <- seq[[covariate]][[i]]
-      mean_vals <- sapply(occ_vars, function(var){
-        if(var != covariate){
+      cov_seq <- seq[[cov]][[i]]
+      mean_vals <- sapply(model_covs, function(var){
+        if(var != cov){
           return(ean(siteCovs(umf_list[[i]])[[var]], na.rm = TRUE))
         } else {
           return(NULL)
         }
       })
-      temp_date <- data.frame(covariate = cov_seq)
+      temp_date <- data.frame(cov = cov_seq)
       temp_data <- cbind(temp_data, as.data.frame(mean_vals))
-      colnames(temp_data) <- c(covariate, occ_vars[occ_vars != covariate])
-      new_data_list[[covariate]] <- temp_data
+      colnames(temp_data) <- c(cov, model_covs[model_covs != cov])
+      new_data_list[[cov]] <- temp_data
     }
   }
   return(new_data_list)
 }
 
-#1) Apply the function
-nd <- generate_data(umf_list, occ_vars, range, seq)
+#2) Apply the function
+nd <- generate_data(umf_list, model_covs, range, seq)
 
-#e) Predict species occupancy in relation to each covariate
-predict_occ <- function(model, umf_list, dep_vars, range, seq){
+#e. Predict species occupancy in relation to each independent variable
+#1) Define a function to predict occupancy
+predict_occ <- function(model, umf_list, species_list, model_covs, range, seq){
   preds <- list()
-  for(species in dep_vars){
+  for(species in species_list){
     species_preds <- data.frame()
-    for(covariate in occ_vars){
-      temp_data <- new_data[[covariate]]
+    for(cov in model_covs){
+      temp_data <- new_data[[cov]]
       temp_data$Species <- species
       occ_preds <- predict(model, type = "response", species = species, newdata = temp_data)
       temp_data$Predicted_Occupancy <- occ_preds
@@ -1378,21 +1394,21 @@ predict_occ <- function(model, umf_list, dep_vars, range, seq){
   return(preds)
 }
 
-#1) Apply the function and view predictions for all species
-species_preds <- predict_occ(model, dep_vars, umf_list, occ_vars, nd)
+#2) Apply the function and view predictions for all species
+species_preds <- predict_occ(model, species_list, model_covs, umf_list, nd)
 species_preds$Rrav
 species_preds$Rmeg
 species_preds$Mmus
 species_preds$Mcal
 
 #f. Build the plot
-plot(occ_dist_rrav$Dist_urban, occ_dist_rrav$Predicted, type = '1', ylim=c(0,0.6),
-     col="X", lwd=2, xlab="Distance to urban area (km)", ylab="Marginal occupancy")
-lines(occ_dist_rmeg$Dist_urban, occ_dist_rmeg$Predicted, col="Y", lwd=2)
-lines(occ_dist_mmus$Dist_urban, occ_dist_mmus$Predicted, col="Z", lwd=2)
-lines(occ_dist_mcal$Dist_urban, occ_dist_mcal$Predicted, col="A", lwd=2)
-legend('topleft', col=c("X","Y","Z","A"), lty=1,
-       legend=c("Rrav","Rmeg","Mmus","Mcal"))
+plot(occ_dist_rrav$Dist_urban, occ_dist_rrav$Predicted, type = '1', ylim = c(0,0.6),
+     col = "X", lwd = 2, xlab = "Distance to urban area (km)", ylab = "Marginal occupancy")
+lines(occ_dist_rmeg$Dist_urban, occ_dist_rmeg$Predicted, col = "Y", lwd = 2)
+lines(occ_dist_mmus$Dist_urban, occ_dist_mmus$Predicted, col = "Z", lwd = 2)
+lines(occ_dist_mcal$Dist_urban, occ_dist_mcal$Predicted, col = "A", lwd = 2)
+legend('topleft', col = c("X","Y","Z","A"), lty = 1,
+       legend = c("Rrav","Rmeg","Mmus","Mcal"))
 
 #-----
 #2. Plot the effect of covariates on conditional occupancy
