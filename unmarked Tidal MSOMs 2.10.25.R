@@ -1001,18 +1001,7 @@ penalize_model <- function(models){
 }
 
 #b. Apply the function
-#1) Initiate parallel computing
-cl <- makeCluster(detectCores() - 1)  
-clusterExport(cl, c("penalize_model", "global_models"))
-clusterEvalQ(cl, library(unmarked))
-
-#2) Fit the penalized models with parallelization
-global_pen_models <- parLapply(cl, global_models, function(model){
-  penalize_model(model)
-})
-stopCluster(cl)
-
-#3) Save the models
+global_pen_models <- lapply(global_models, penalize_model)
 save(global_pen_models, file = "Global_pen_models.Rdata")
 load("Global_pen_models.Rdata")
 
@@ -1167,21 +1156,9 @@ load("Bi_models.Rdata")
 
 #-----
 #3. Fit the model with penalized likelihood
-#a. Initiate parallel computing
-cl <- makeCluster(detectCores() - 1)  
-clusterExport(cl, c("penalize_model", "bi_models"))
-clusterEvalQ(cl, library(unmarked))
-
-#b. Fit the penalized models with parallelization
-bi_pen_models <- parLapply(cl, bi_models, function(model){
-  penalize_model(model)
-})
-stopCluster(cl)
-
-#c. Save the models
+bi_pen_models <- lapply(bi_models, penalize_model)
 save(bi_pen_models, file = "Bi_pen_models.Rdata")
 load("Bi_pen_models.Rdata")
-bi_pen_models[[1]]
 
 #-----
 #4. Adjust for overdispersion
@@ -1260,21 +1237,9 @@ load("Tri_models.Rdata")
 
 #-----
 #3. Fit the model with penalized likelihood
-#a. Initialize parallel computing
-cl <- makeCluster(detectCores() - 1)  
-clusterExport(cl, c("penalize_model", "tri_models"))
-clusterEvalQ(cl, library(unmarked))
-
-#b. Fit the penalized models with parallelization
-tri_pen_models <- parLapply(cl, tri_models, function(model){
-  penalize_model(model)
-})
-stopCluster(cl)
-
-#c. Save the models
+tri_pen_models <- lapply(tri_models, penalize_model)
 save(tri_pen_models, file = "Tri_pen_models.Rdata")
 load("Tri_pen_models.Rdata")
-tri_pen_models[[1]]
 
 #-----
 #4. Adjust for overdispersion
