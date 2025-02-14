@@ -1001,7 +1001,18 @@ penalize_model <- function(models){
 }
 
 #b. Apply the function
-global_pen_models <- lapply(global_models, penalize_model)
+#1) Initiate parallel computing
+cl <- makeCluster(detectCores() - 1)  
+clusterExport(cl, c("penalize_model", "global_models"))
+clusterEvalQ(cl, library(unmarked))
+
+#2) Fit the penalized models with parallelization
+global_pen_models <- parLapply(cl, global_models, function(model){
+  penalize_model(model)
+})
+stopCluster(cl)
+
+#3) Save the models
 save(global_pen_models, file = "Global_pen_models.Rdata")
 load("Global_pen_models.Rdata")
 
@@ -1156,7 +1167,18 @@ load("Bi_models.Rdata")
 
 #-----
 #3. Fit the model with penalized likelihood
-bi_pen_models <- lapply(bi_models, penalize_model)
+#a. Initiate parallel computing
+cl <- makeCluster(detectCores() - 1)  
+clusterExport(cl, c("penalize_model", "bi_models"))
+clusterEvalQ(cl, library(unmarked))
+
+#b. Fit the penalized models with parallelization
+bi_pen_models <- parLapply(cl, bi_models, function(model){
+  penalize_model(model)
+})
+stopCluster(cl)
+
+#c. Save the models
 save(bi_pen_models, file = "Bi_pen_models.Rdata")
 load("Bi_pen_models.Rdata")
 bi_pen_models[[1]]
@@ -1222,7 +1244,7 @@ fit_tri_models <- function(tri_combos, umf_list){
         detformulas = as.character(rep("~Effort + Year", 4)),
         control = list(maxit = 5000),
         maxOrder = 2,
-        starts = rnorm(52, mean = 0, sd = 0.075),
+        starts = rnorm(52, mean = 0, sd = 0.15),
         data = umf_list[[i]]
       )
     }
@@ -1231,25 +1253,67 @@ fit_tri_models <- function(tri_combos, umf_list){
   return(models)
 }
 
-#2) Apply the function
-tri_models <- fit_tri_models(tri_combos, umf_list_tidal)
+#b. Apply the function
+tri_models <- fit_tri_models(tri_combos, umf_list)
+save(tri_models, file = "Tri_models.Rdata")
+load("Tri_models.Rdata")
 
-#c. Pool results 
-#1) Extract unique variable names
-tri_names <- names(tri_models)
+#-----
+#3. Fit the model with penalized likelihood
+#a. Initialize parallel computing
+cl <- makeCluster(detectCores() - 1)  
+clusterExport(cl, c("penalize_model", "tri_models"))
+clusterEvalQ(cl, library(unmarked))
 
-#2) Group models by variable pairs
-tri_group <- setNames(lapply(tri_names, function(trio) {
-  tri_models[grep(trio, names(tri_models), fixed = TRUE)]
-}), tri_names)
+#b. Fit the penalized models with parallelization
+tri_pen_models <- parLapply(cl, tri_models, function(model){
+  penalize_model(model)
+})
+stopCluster(cl)
 
-#3) Pool the results for each independent variable
-tri_results <- list()
-for(trio in names(tri_group)){
-  model_list <- flatten_list(tri_group[[trio]])
-  model_list <- model_list[sapply(model_list, inherits, "unmarkedFitOccuMulti")]
-  tri_results[[trio]] <- pool_results(model_list)
+#c. Save the models
+save(tri_pen_models, file = "Tri_pen_models.Rdata")
+load("Tri_pen_models.Rdata")
+tri_pen_models[[1]]
+
+#-----
+#4. Adjust for overdispersion
+#a. Apply the adjustment by specifying c-hat (from global model)
+quasi_tri_results <- lapply(tri_pen_models, function(model_list){
+  lapply(model_list, function(model){
+    summaryOD(model, c.hat = 1.77, conf.level = 0.95, out.type = "confint")
+  })
+})
+quasi_tri_results
+
+#-----
+#5. Pool the adjusted results with Rubin's rules
+#a. Flatten the quasi-adjusted model output 
+quasi_tri_list <- unlist(quasi_tri_results, recursive = FALSE)
+names(quasi_tri_list)
+
+#b. Define a function to pool outputs for each independent variable
+pool_tri <- function(quasi_tri_list, pool_quasi){
+  results <- list()
+  
+  #Extract and group the quasi output by independent variable
+  tri_names <- unique(sub("\\d+$", "", names(quasi_tri_list)))
+  tri_combo <- setNames(lapply(tri_names, function(tri) {
+    quasi_tri_list[grep(paste0("^", gsub("\\+", "\\\\+", tri), "[0-9]+$"), 
+                       names(quasi_tri_list), value = TRUE)]
+  }), tri_names)
+  
+  #Pool the results
+  for(tri in names(tri_combo)){
+    cov_data <- tri_combo[[tri]]
+    pooled_results <- pool_quasi(cov_data)
+    results[[tri]] <- pooled_results
+  }
+  return(results)
 }
+
+#c. Apply the function
+tri_results <- pool_tri(quasi_tri_list, pool_quasi)
 tri_results
 
 #-------------------------------------------------------------------------------
