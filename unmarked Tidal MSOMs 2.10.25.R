@@ -1416,22 +1416,21 @@ legend('topleft', col = c("X","Y","Z","A"), lty = 1,
 
 #-------------------------------------------------------------------------------
 #CALCULATE CONDITIONAL OCCUPANCY PROBABILITIES
-###########NOT HELPFUL BECAUSE ONLY APPLICABLE TO ONE SITE????#################
 
-#1. Predict the probability of occupancy of one species conditional on another species' presence at site 1 (e.g., X)       #HOW TO CALCULATE AVERAGE FOR ALL SITES???
-cond_occ <- lapply(null_models, function(null_models){
-  rrav_rmeg <- predict(null_models, newdata = data.frame(site = 1), type = "state", species = "Rrav", cond = "Rmeg")
-  rrav_mmus <- predict(null_models, newdata = data.frame(site = 1), type = "state", species = "Rrav", cond = "Mmus")
-  rrav_mcal <- predict(null_models, newdata = data.frame(site = 1), type = "state", species = "Rrav", cond = "Mcal")
-  rmeg_rrav <- predict(null_models, newdata = data.frame(site = 1), type = "state", species = "Rmeg", cond = "Rrav")
-  rmeg_mmus <- predict(null_models, newdata = data.frame(site = 1), type = "state", species = "Rmeg", cond = "Mmus")
-  rmeg_mcal <- predict(null_models, newdata = data.frame(site = 1), type = "state", species = "Rmeg", cond = "Mcal")
-  mmus_rrav <- predict(null_models, newdata = data.frame(site = 1), type = "state", species = "Mmus", cond = "Rrav")
-  mmus_rmeg <- predict(null_models, newdata = data.frame(site = 1), type = "state", species = "Mmus", cond = "Rmeg")
-  mmus_mcal <- predict(null_models, newdata = data.frame(site = 1), type = "state", species = "Mmus", cond = "Mcal")
-  mcal_rrav <- predict(null_models, newdata = data.frame(site = 1), type = "state", species = "Mcal", cond = "Rrav")
-  mcal_rmeg <- predict(null_models, newdata = data.frame(site = 1), type = "state", species = "Mcal", cond = "Rmeg")
-  mcal_mmus <- predict(null_models, newdata = data.frame(site = 1), type = "state", species = "Mcal", cond = "Mmus")
+#1. Predict the probability of occupancy of one species conditional on another species' presence 
+cond_occ <- lapply(null_models, function(model){
+  rrav_rmeg <- predict(model, type = "state", species = "Rrav", cond = "Rmeg")
+  rrav_mmus <- predict(model, type = "state", species = "Rrav", cond = "Mmus")
+  rrav_mcal <- predict(model, type = "state", species = "Rrav", cond = "Mcal")
+  rmeg_rrav <- predict(model, type = "state", species = "Rmeg", cond = "Rrav")
+  rmeg_mmus <- predict(model, type = "state", species = "Rmeg", cond = "Mmus")
+  rmeg_mcal <- predict(model, type = "state", species = "Rmeg", cond = "Mcal")
+  mmus_rrav <- predict(model, type = "state", species = "Mmus", cond = "Rrav")
+  mmus_rmeg <- predict(model, type = "state", species = "Mmus", cond = "Rmeg")
+  mmus_mcal <- predict(model, type = "state", species = "Mmus", cond = "Mcal")
+  mcal_rrav <- predict(model, type = "state", species = "Mcal", cond = "Rrav")
+  mcal_rmeg <- predict(model, type = "state", species = "Mcal", cond = "Rmeg")
+  mcal_mmus <- predict(model, type = "state", species = "Mcal", cond = "Mmus")
   all_cond_occ <- rbind(rrav_rmeg[1,], rrav_mmus[1,], rrav_mcal[1,], rmeg_rrav[1,], rmeg_mmus[1,], rmeg_mcal[1,],
                         mmus_rrav[1,], mmus_rmeg[1,], mmus_mcal[1,], mcal_rrav[1,], mcal_rmeg[1,], mcal_mmus[1,])
   all_cond_occ$Species <- c("Rrav_Rmeg", "Rrav_Mmus", "Rrav_Mcal", "Rmeg_Rrav", "Rmeg_Mmus", "Rmeg_Mcal",
@@ -1455,20 +1454,20 @@ cond_occ_pooled
     #Rrav is neutrally associated with all species (Mcal: 50%, Mmus: 57%, Rmeg: 41%) 
 
 #----------
-#2. Predict the probability of occupancy of one species conditional on another species' absence at site 1 (e.g., X)
-abs_occ <- lapply(null_models, function(null_models){
-  rrav_normeg <- predict(null_models, newdata = data.frame(site = 1), type = "state", species = "Rrav", cond = "-Rmeg")
-  rrav_nommus <- predict(null_models, newdata = data.frame(site = 1), type = "state", species = "Rrav", cond = "-Mmus")
-  rrav_nomcal <- predict(null_models, newdata = data.frame(site = 1), type = "state", species = "Rrav", cond = "-Mcal")
-  rmeg_norrav <- predict(null_models, newdata = data.frame(site = 1), type = "state", species = "Rmeg", cond = "-Rrav")
-  rmeg_nommus <- predict(null_models, newdata = data.frame(site = 1), type = "state", species = "Rmeg", cond = "-Mmus")
-  rmeg_nomcal <- predict(null_models, newdata = data.frame(site = 1), type = "state", species = "Rmeg", cond = "-Mcal")
-  mmus_norrav <- predict(null_models, newdata = data.frame(site = 1), type = "state", species = "Mmus", cond = "-Rrav")
-  mmus_normeg <- predict(null_models, newdata = data.frame(site = 1), type = "state", species = "Mmus", cond = "-Rmeg")
-  mmus_nomcal <- predict(null_models, newdata = data.frame(site = 1), type = "state", species = "Mmus", cond = "-Mcal")
-  mcal_norrav <- predict(null_models, newdata = data.frame(site = 1), type = "state", species = "Mcal", cond = "-Rrav")
-  mcal_normeg <- predict(null_models, newdata = data.frame(site = 1), type = "state", species = "Mcal", cond = "-Rmeg")
-  mcal_nommus <- predict(null_models, newdata = data.frame(site = 1), type = "state", species = "Mcal", cond = "-Mmus")
+#2. Predict the probability of occupancy of one species conditional on another species' absence 
+abs_occ <- lapply(null_models, function(models){
+  rrav_normeg <- predict(model, type = "state", species = "Rrav", cond = "-Rmeg")
+  rrav_nommus <- predict(model, type = "state", species = "Rrav", cond = "-Mmus")
+  rrav_nomcal <- predict(model, type = "state", species = "Rrav", cond = "-Mcal")
+  rmeg_norrav <- predict(model, type = "state", species = "Rmeg", cond = "-Rrav")
+  rmeg_nommus <- predict(model, type = "state", species = "Rmeg", cond = "-Mmus")
+  rmeg_nomcal <- predict(model, type = "state", species = "Rmeg", cond = "-Mcal")
+  mmus_norrav <- predict(model, type = "state", species = "Mmus", cond = "-Rrav")
+  mmus_normeg <- predict(model, type = "state", species = "Mmus", cond = "-Rmeg")
+  mmus_nomcal <- predict(model, type = "state", species = "Mmus", cond = "-Mcal")
+  mcal_norrav <- predict(model, type = "state", species = "Mcal", cond = "-Rrav")
+  mcal_normeg <- predict(model, type = "state", species = "Mcal", cond = "-Rmeg")
+  mcal_nommus <- predict(model, type = "state", species = "Mcal", cond = "-Mmus")
   all_abs_occ <- rbind(rrav_normeg[1,], rrav_nommus[1,], rrav_nomcal[1,], rmeg_norrav[1,], rmeg_nommus[1,], rmeg_nomcal[1,],
                        mmus_norrav[1,], mmus_normeg[1,], mmus_nomcal[1,], mcal_norrav[1,], mcal_normeg[1,], mcal_nommus[1,])
   all_abs_occ$Species <- c("Rrav_NoRmeg", "Rrav_NoMmus", "Rrav_NoMcal", "Rmeg_NoRrav", "Rmeg_NoMmus", "Rmeg_NoMcal",
@@ -1699,23 +1698,22 @@ ggplot(mcal_data, aes(Species_status, Predicted)) +
   guides(color=guide_legend(title = "Species"))
 
 #-------------------------------------------------------------------------------
-#CALCULATE PREDICTED OCCUPANCY AND DETECTION PROBABILITIES'
-#######NOTE HELPFUL BECAUSE ONLY APPLICABLE FOR ONE SITE AT A TIME????##########
+#CALCULATE PREDICTED OCCUPANCY AND DETECTION PROBABILITIES
 
 #1. Occupancy
 #a. Predict probability for each occupancy state
-null_occ_probs <- lapply(null_models, function(null_models){
-  all_probs <- predict(null_models, newdata = data.frame(site=1),type="state")
+null_occ_probs <- lapply(null_models, function(model){
+  all_probs <- predict(model, type = "state")
   return(all_probs)
 })
 null_occ_probs[[1]]$Predicted
 
-#b. Calculate predicted marginal occupancy (across all possible occupancy states) for each species at site 1
-null_occ_preds <- lapply(null_models, function(null_models){
-  rrav_occ <- predict(null_models, newdata = data.frame(site = 1), type = "state", species = "Rrav")
-  rmeg_occ <- predict(null_models, newdata = data.frame(site = 1), type = "state", species = "Rmeg")
-  mmus_occ <- predict(null_models, newdata = data.frame(site = 1), type = "state", species = "Mmus")
-  mcal_occ <- predict(null_models, newdata = data.frame(site = 1), type = "state", species = "Mcal")
+#b. Calculate predicted marginal occupancy (across all possible occupancy states) for each species
+null_occ_preds <- lapply(null_models, function(model){
+  rrav_occ <- predict(model, type = "state", species = "Rrav")
+  rmeg_occ <- predict(model, type = "state", species = "Rmeg")
+  mmus_occ <- predict(model, type = "state", species = "Mmus")
+  mcal_occ <- predict(model, type = "state", species = "Mcal")
   all_occ <- rbind(rrav_occ[1,], rmeg_occ[1,], mmus_occ[1,], mcal_occ[1,])
   all_occ$Species <- c("Rrav", "Rmeg", "Mmus", "Mcal")
   return(all_occ)
@@ -1756,12 +1754,12 @@ ggplot(null_occ_pooled, aes(x = factor(Species, level = level_order), y = Predic
 
 #-----
 #2. Detection
-#a. Calculate predicted marginal detection for each species at site 1
-null_det_preds <- lapply(null_models, function(null_models){
-  rrav_det <- predict(null_models, newdata = data.frame(site = 1), type = "det", species = "Rrav")
-  rmeg_det <- predict(null_models, newdata = data.frame(site = 1), type = "det", species = "Rmeg")
-  mmus_det <- predict(null_models, newdata = data.frame(site = 1), type = "det", species = "Mmus")
-  mcal_det <- predict(null_models, newdata = data.frame(site = 1), type = "det", species = "Mcal")
+#a. Calculate predicted marginal detection for each species
+null_det_preds <- lapply(null_models, function(model){
+  rrav_det <- predict(model, type = "det", species = "Rrav")
+  rmeg_det <- predict(model, type = "det", species = "Rmeg")
+  mmus_det <- predict(model, type = "det", species = "Mmus")
+  mcal_det <- predict(model, type = "det", species = "Mcal")
   all_det <- rbind(rrav_det[1,], rmeg_det[1,], mmus_det[1,], mcal_det[1,])
   all_det$Species <- c("Rrav", "Rmeg", "Mmus", "Mcal")
   return(all_det)
