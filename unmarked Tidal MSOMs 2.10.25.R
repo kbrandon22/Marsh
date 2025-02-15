@@ -1416,21 +1416,22 @@ legend('topleft', col = c("X","Y","Z","A"), lty = 1,
 
 #-------------------------------------------------------------------------------
 #CALCULATE CONDITIONAL OCCUPANCY PROBABILITIES
+###########NOT HELPFUL BECAUSE ONLY APPLICABLE TO ONE SITE????#################
 
-#1. Predict the probability of occupancy of one species conditional on another species' presence
+#1. Predict the probability of occupancy of one species conditional on another species' presence at site 1 (e.g., X)       #HOW TO CALCULATE AVERAGE FOR ALL SITES???
 cond_occ <- lapply(null_models, function(null_models){
-  rrav_rmeg <- predict(null_models, newdata = data.frame(site=1), type="state", species="Rrav", cond="Rmeg")
-  rrav_mmus <- predict(null_models, newdata = data.frame(site=1), type="state", species="Rrav", cond="Mmus")
-  rrav_mcal <- predict(null_models, newdata = data.frame(site=1), type="state", species="Rrav", cond="Mcal")
-  rmeg_rrav <- predict(null_models, newdata = data.frame(site=1), type="state", species="Rmeg", cond="Rrav")
-  rmeg_mmus <- predict(null_models, newdata = data.frame(site=1), type="state", species="Rmeg", cond="Mmus")
-  rmeg_mcal <- predict(null_models, newdata = data.frame(site=1), type="state", species="Rmeg", cond="Mcal")
-  mmus_rrav <- predict(null_models, newdata = data.frame(site=1), type="state", species="Mmus", cond="Rrav")
-  mmus_rmeg <- predict(null_models, newdata = data.frame(site=1), type="state", species="Mmus", cond="Rmeg")
-  mmus_mcal <- predict(null_models, newdata = data.frame(site=1), type="state", species="Mmus", cond="Mcal")
-  mcal_rrav <- predict(null_models, newdata = data.frame(site=1), type="state", species="Mcal", cond="Rrav")
-  mcal_rmeg <- predict(null_models, newdata = data.frame(site=1), type="state", species="Mcal", cond="Rmeg")
-  mcal_mmus <- predict(null_models, newdata = data.frame(site=1), type="state", species="Mcal", cond="Mmus")
+  rrav_rmeg <- predict(null_models, newdata = data.frame(site = 1), type = "state", species = "Rrav", cond = "Rmeg")
+  rrav_mmus <- predict(null_models, newdata = data.frame(site = 1), type = "state", species = "Rrav", cond = "Mmus")
+  rrav_mcal <- predict(null_models, newdata = data.frame(site = 1), type = "state", species = "Rrav", cond = "Mcal")
+  rmeg_rrav <- predict(null_models, newdata = data.frame(site = 1), type = "state", species = "Rmeg", cond = "Rrav")
+  rmeg_mmus <- predict(null_models, newdata = data.frame(site = 1), type = "state", species = "Rmeg", cond = "Mmus")
+  rmeg_mcal <- predict(null_models, newdata = data.frame(site = 1), type = "state", species = "Rmeg", cond = "Mcal")
+  mmus_rrav <- predict(null_models, newdata = data.frame(site = 1), type = "state", species = "Mmus", cond = "Rrav")
+  mmus_rmeg <- predict(null_models, newdata = data.frame(site = 1), type = "state", species = "Mmus", cond = "Rmeg")
+  mmus_mcal <- predict(null_models, newdata = data.frame(site = 1), type = "state", species = "Mmus", cond = "Mcal")
+  mcal_rrav <- predict(null_models, newdata = data.frame(site = 1), type = "state", species = "Mcal", cond = "Rrav")
+  mcal_rmeg <- predict(null_models, newdata = data.frame(site = 1), type = "state", species = "Mcal", cond = "Rmeg")
+  mcal_mmus <- predict(null_models, newdata = data.frame(site = 1), type = "state", species = "Mcal", cond = "Mmus")
   all_cond_occ <- rbind(rrav_rmeg[1,], rrav_mmus[1,], rrav_mcal[1,], rmeg_rrav[1,], rmeg_mmus[1,], rmeg_mcal[1,],
                         mmus_rrav[1,], mmus_rmeg[1,], mmus_mcal[1,], mcal_rrav[1,], mcal_rmeg[1,], mcal_mmus[1,])
   all_cond_occ$Species <- c("Rrav_Rmeg", "Rrav_Mmus", "Rrav_Mcal", "Rmeg_Rrav", "Rmeg_Mmus", "Rmeg_Mcal",
@@ -1443,31 +1444,31 @@ cond_occ[[1]]$Predicted
 cond_occ_pooled <- do.call(rbind, lapply(split(do.call(rbind, cond_occ), f = ~ Species), function(species_data){
   mean_pred <- colMeans(species_data[, c("Predicted", "SE", "lower", "upper")], na.rm = TRUE)
   return(data.frame(Species = unique(species_data$Species), Predicted = mean_pred["Predicted"],
-                    SE = mean_pred["SE"], lower = mean_pred["lower"], upper = mean_pred["upper"]))
+                    SE = mean_pred["SE"], Lower_CI = mean_pred["lower"], Upper_CI = mean_pred["upper"]))
 }))
 cond_occ_pooled$Species <- factor(cond_occ_pooled$Species, levels = c("Rrav_Rmeg", "Rrav_Mmus", "Rrav_Mcal", "Rmeg_Rrav", "Rmeg_Mmus", "Rmeg_Mcal",
                                                                       "Mmus_Rrav", "Mmus_Rmeg", "Mmus_Mcal", "Mcal_Rrav", "Mcal_Rmeg", "Mcal_Mmus"))
 cond_occ_pooled
-#Mcal is neutrally associated with Mmus (40%) and Rmeg (51%) and negatively associated with Rrav (33%)
-#Mmus is positively associated with all species (Mcal: 80%, Rmeg: 73%, Rrav: 77%)
-#Rmeg is positively associated with Mcal (75%) and neutrally with Mmus (54%) and Rrav (40%) 
-#Rrav is neutrally associated with all species (Mcal: 50%, Mmus: 57%, Rmeg: 41%) 
+    #Mcal is neutrally associated with Mmus (40%) and Rmeg (51%) and negatively associated with Rrav (33%)
+    #Mmus is positively associated with all species (Mcal: 80%, Rmeg: 73%, Rrav: 77%)
+    #Rmeg is positively associated with Mcal (75%) and neutrally with Mmus (54%) and Rrav (40%) 
+    #Rrav is neutrally associated with all species (Mcal: 50%, Mmus: 57%, Rmeg: 41%) 
 
 #----------
-#2. Predict the probability of occupancy of one species conditional on another species' absence 
+#2. Predict the probability of occupancy of one species conditional on another species' absence at site 1 (e.g., X)
 abs_occ <- lapply(null_models, function(null_models){
-  rrav_normeg <- predict(null_models, newdata = data.frame(site=1), type="state", species="Rrav", cond="-Rmeg")
-  rrav_nommus <- predict(null_models, newdata = data.frame(site=1), type="state", species="Rrav", cond="-Mmus")
-  rrav_nomcal <- predict(null_models, newdata = data.frame(site=1), type="state", species="Rrav", cond="-Mcal")
-  rmeg_norrav <- predict(null_models, newdata = data.frame(site=1), type="state", species="Rmeg", cond="-Rrav")
-  rmeg_nommus <- predict(null_models, newdata = data.frame(site=1), type="state", species="Rmeg", cond="-Mmus")
-  rmeg_nomcal <- predict(null_models, newdata = data.frame(site=1), type="state", species="Rmeg", cond="-Mcal")
-  mmus_norrav <- predict(null_models, newdata = data.frame(site=1), type="state", species="Mmus", cond="-Rrav")
-  mmus_normeg <- predict(null_models, newdata = data.frame(site=1), type="state", species="Mmus", cond="-Rmeg")
-  mmus_nomcal <- predict(null_models, newdata = data.frame(site=1), type="state", species="Mmus", cond="-Mcal")
-  mcal_norrav <- predict(null_models, newdata = data.frame(site=1), type="state", species="Mcal", cond="-Rrav")
-  mcal_normeg <- predict(null_models, newdata = data.frame(site=1), type="state", species="Mcal", cond="-Rmeg")
-  mcal_nommus <- predict(null_models, newdata = data.frame(site=1), type="state", species="Mcal", cond="-Mmus")
+  rrav_normeg <- predict(null_models, newdata = data.frame(site = 1), type = "state", species = "Rrav", cond = "-Rmeg")
+  rrav_nommus <- predict(null_models, newdata = data.frame(site = 1), type = "state", species = "Rrav", cond = "-Mmus")
+  rrav_nomcal <- predict(null_models, newdata = data.frame(site = 1), type = "state", species = "Rrav", cond = "-Mcal")
+  rmeg_norrav <- predict(null_models, newdata = data.frame(site = 1), type = "state", species = "Rmeg", cond = "-Rrav")
+  rmeg_nommus <- predict(null_models, newdata = data.frame(site = 1), type = "state", species = "Rmeg", cond = "-Mmus")
+  rmeg_nomcal <- predict(null_models, newdata = data.frame(site = 1), type = "state", species = "Rmeg", cond = "-Mcal")
+  mmus_norrav <- predict(null_models, newdata = data.frame(site = 1), type = "state", species = "Mmus", cond = "-Rrav")
+  mmus_normeg <- predict(null_models, newdata = data.frame(site = 1), type = "state", species = "Mmus", cond = "-Rmeg")
+  mmus_nomcal <- predict(null_models, newdata = data.frame(site = 1), type = "state", species = "Mmus", cond = "-Mcal")
+  mcal_norrav <- predict(null_models, newdata = data.frame(site = 1), type = "state", species = "Mcal", cond = "-Rrav")
+  mcal_normeg <- predict(null_models, newdata = data.frame(site = 1), type = "state", species = "Mcal", cond = "-Rmeg")
+  mcal_nommus <- predict(null_models, newdata = data.frame(site = 1), type = "state", species = "Mcal", cond = "-Mmus")
   all_abs_occ <- rbind(rrav_normeg[1,], rrav_nommus[1,], rrav_nomcal[1,], rmeg_norrav[1,], rmeg_nommus[1,], rmeg_nomcal[1,],
                        mmus_norrav[1,], mmus_normeg[1,], mmus_nomcal[1,], mcal_norrav[1,], mcal_normeg[1,], mcal_nommus[1,])
   all_abs_occ$Species <- c("Rrav_NoRmeg", "Rrav_NoMmus", "Rrav_NoMcal", "Rmeg_NoRrav", "Rmeg_NoMmus", "Rmeg_NoMcal",
@@ -1480,15 +1481,15 @@ abs_occ[[1]]$Predicted
 abs_occ_pooled <- do.call(rbind, lapply(split(do.call(rbind, abs_occ), f = ~ Species), function(species_data){
   mean_pred <- colMeans(species_data[, c("Predicted", "SE", "lower", "upper")], na.rm = TRUE)
   return(data.frame(Species = unique(species_data$Species), Predicted = mean_pred["Predicted"],
-                    SE = mean_pred["SE"], lower = mean_pred["lower"], upper = mean_pred["upper"]))
+                    SE = mean_pred["SE"], Lower_CI = mean_pred["lower"], Upper_CI = mean_pred["upper"]))
 }))
 abs_occ_pooled$Species <- factor(abs_occ_pooled$Species, levels = c("Rrav_NoRmeg", "Rrav_NoMmus", "Rrav_NoMcal", "Rmeg_NoRrav", "Rmeg_NoMmus", "Rmeg_NoMcal",
                                                                     "Mmus_NoRrav", "Mmus_NoRmeg", "Mmus_NoMcal", "Mcal_NoRrav", "Mcal_NoRmeg", "Mcal_NoMmus"))
 abs_occ_pooled
-#Mcal is not likely to be present when Mmus (21%), Rmeg (17%), and Rrav (34%) are absent
-#Mmus occupancy is not associated with Mcal (61%), Rmeg (62%), or Rrav (59%) absence
-#Rmeg is not likely to be present when Mcal is absent (37%), but there is no association with Rrav (60%) or Mmus (41%) absence
-#Rrav is not likely to be present when Mmus (37%) is absent and occupancy is not associated with Mcal (51%) or Rmeg (61%) absence
+    #Mcal is not likely to be present when Mmus (21%), Rmeg (17%), and Rrav (34%) are absent
+    #Mmus occupancy is not associated with Mcal (61%), Rmeg (62%), or Rrav (59%) absence
+    #Rmeg is not likely to be present when Mcal is absent (37%), but there is no association with Rrav (60%) or Mmus (41%) absence
+    #Rrav is not likely to be present when Mmus (37%) is absent and occupancy is not associated with Mcal (51%) or Rmeg (61%) absence
 
 #----------
 #3. Visualize naive conditional occupancy of all species pairs
@@ -1507,8 +1508,8 @@ for(pair in rrav_species_pairs){
     Species = pair,
     Predicted = c(pred_cond_occ$Predicted, pred_abs_occ$Predicted),
     SE = c(pred_cond_occ$SE, pred_abs_occ$SE),
-    lower = c(pred_cond_occ$lower, pred_abs_occ$lower),
-    upper = c(pred_cond_occ$upper, pred_abs_occ$upper)
+    Lower_CI = c(pred_cond_occ$lower, pred_abs_occ$lower),
+    Upper_CI = c(pred_cond_occ$upper, pred_abs_occ$upper)
   )
   rrav_list[[pair]] <- combined
 }
@@ -1526,23 +1527,23 @@ rrav_data$Species_simple <- gsub("Rrav_", "", rrav_data$Species)
 rrav_data$Species_simple <- gsub("No", "", rrav_data$Species_simple)
 
 ggplot(rrav_data, aes(Species_status, Predicted)) +
-  geom_point(aes(color=Species_simple), size=3, position=position_dodge(width=0.4)) +
-  geom_errorbar(aes(ymin=lower, ymax=upper, color=Species_simple), linewidth=0.8, width=0.25, position=position_dodge(width=0.4)) +
+  geom_point(aes(color = Species_simple), size = 3, position = position_dodge(width = 0.4)) +
+  geom_errorbar(aes(ymin = Lower_CI, ymax = Upper_CI, color = Species_simple), linewidth = 0.8, width = 0.25, position = position_dodge(width = 0.4)) +
   ylim(0,1) +
-  labs(x="Species status", y="Conditional occupancy probability") +
-  theme(axis.title.y=element_text(size=14, vjust=4),
-        axis.title.x=element_text(size=14, vjust=-0.5),
-        axis.text.x=element_text(color="black", size=14),
-        axis.text.y=element_text(color="black", size=14),
-        axis.line.x=element_line(color="black", linewidth=0.5),
-        axis.line.y=element_line(color="black", linewidth=0.5)) +
-  theme(panel.background=element_rect(fill='transparent', color=NA),
-        panel.grid.minor=element_blank(),
-        panel.grid.major=element_blank()) +
-  theme(plot.margin=unit(c(1,1,1,1), "cm")) +
-  scale_color_manual(values=c("Mcal" = colors[4], "Rmeg" = colors[2], "Mmus" = colors[3]),
-                     labels=c("Mcal", "Mmus", "Rmeg")) +
-  guides(color=guide_legend(title="Species"))
+  labs(x = "Species status", y = "Conditional occupancy probability") +
+  theme(axis.title.y = element_text(size = 14, vjust = 4),
+        axis.title.x = element_text(size = 14, vjust = -0.5),
+        axis.text.x = element_text(color = "black", size = 14),
+        axis.text.y = element_text(color = "black", size = 14),
+        axis.line.x = element_line(color = "black", linewidth = 0.5),
+        axis.line.y = element_line(color = "black", linewidth = 0.5)) +
+  theme(panel.background = element_rect(fill = 'transparent', color = NA),
+        panel.grid.minor = element_blank(),
+        panel.grid.major = element_blank()) +
+  theme(plot.margin = unit(c(1,1,1,1), "cm")) +
+  scale_color_manual(values = c("Mcal" = colors[4], "Rmeg" = colors[2], "Mmus" = colors[3]),
+                     labels = c("Mcal", "Mmus", "Rmeg")) +
+  guides(color = guide_legend(title = "Species"))
 
 #-----
 #b. Rmeg conditional on other species
@@ -1560,8 +1561,8 @@ for(pair in rmeg_species_pairs){
     Species = pair,
     Predicted = c(pred_cond_occ$Predicted, pred_abs_occ$Predicted),
     SE = c(pred_cond_occ$SE, pred_abs_occ$SE),
-    lower = c(pred_cond_occ$lower, pred_abs_occ$lower),
-    upper = c(pred_cond_occ$upper, pred_abs_occ$upper)
+    Lower_CI = c(pred_cond_occ$lower, pred_abs_occ$lower),
+    Upper_CI = c(pred_cond_occ$upper, pred_abs_occ$upper)
   )
   rmeg_list[[pair]] <- combined
 }
@@ -1577,23 +1578,23 @@ rmeg_data$Species_simple <- gsub("Rmeg_", "", rmeg_data$Species)
 rmeg_data$Species_simple <- gsub("No", "", rmeg_data$Species_simple)
 
 ggplot(rmeg_data, aes(Species_status, Predicted)) +
-  geom_point(aes(color=Species_simple), size=3, position=position_dodge(width=0.4)) +
-  geom_errorbar(aes(ymin=lower, ymax=upper, color=Species_simple), linewidth=0.8, width=0.3, position=position_dodge(width=0.4)) +
+  geom_point(aes(color = Species_simple), size = 3, position = position_dodge(width = 0.4)) +
+  geom_errorbar(aes(ymin = Lower_CI, ymax = Upper_CI, color = Species_simple), linewidth = 0.8, width = 0.3, position = position_dodge(width = 0.4)) +
   ylim(0,1) +
-  labs(x="Species status", y="Conditional occupancy probability") +
-  theme(axis.title.y=element_text(size=14, vjust=4),
-        axis.title.x=element_text(size=14, vjust=-0.5),
-        axis.text.x=element_text(color="black", size=14),
-        axis.text.y=element_text(color="black", size=14),
-        axis.line.x=element_line(color="black", linewidth=0.5),
-        axis.line.y=element_line(color="black", linewidth=0.5)) +
-  theme(panel.background=element_rect(fill='transparent', color=NA),
-        panel.grid.minor=element_blank(),
-        panel.grid.major=element_blank()) +
-  theme(plot.margin=unit(c(1,1,1,1), "cm")) +
-  scale_color_manual(values=c("Mcal" = colors[4], "Mmus" = colors[3], "Rrav" = colors[1]),
-                     labels=c("Mcal", "Mmus", "Rrav")) +
-  guides(color=guide_legend(title="Species"))
+  labs(x = "Species status", y = "Conditional occupancy probability") +
+  theme(axis.title.y = element_text(size = 14, vjust = 4),
+        axis.title.x = element_text(size = 14, vjust = -0.5),
+        axis.text.x = element_text(color = "black", size = 14),
+        axis.text.y = element_text(color = "black", size = 14),
+        axis.line.x = element_line(color = "black", linewidth = 0.5),
+        axis.line.y = element_line(color = "black", linewidth = 0.5)) +
+  theme(panel.background = element_rect(fill = 'transparent', color = NA),
+        panel.grid.minor = element_blank(),
+        panel.grid.major = element_blank()) +
+  theme(plot.margin = unit(c(1,1,1,1), "cm")) +
+  scale_color_manual(values = c("Mcal" = colors[4], "Mmus" = colors[3], "Rrav" = colors[1]),
+                     labels = c("Mcal", "Mmus", "Rrav")) +
+  guides(color = guide_legend(title="Species"))
 
 #-----
 #c. Mmus conditional on other species
@@ -1611,8 +1612,8 @@ for(pair in mmus_species_pairs){
     Species = pair,
     Predicted = c(pred_cond_occ$Predicted, pred_abs_occ$Predicted),
     SE = c(pred_cond_occ$SE, pred_abs_occ$SE),
-    lower = c(pred_cond_occ$lower, pred_abs_occ$lower),
-    upper = c(pred_cond_occ$upper, pred_abs_occ$upper)
+    Lower_CI = c(pred_cond_occ$lower, pred_abs_occ$lower),
+    Upper_CI = c(pred_cond_occ$upper, pred_abs_occ$upper)
   )
   mmus_list[[pair]] <- combined
 }
@@ -1628,23 +1629,23 @@ mmus_data$Species_simple <- gsub("Mmus_", "", mmus_data$Species)
 mmus_data$Species_simple <- gsub("No", "", mmus_data$Species_simple)
 
 ggplot(mmus_data, aes(Species_status, Predicted)) +
-  geom_point(aes(color=Species_simple), size=3, position=position_dodge(width=0.4)) +
-  geom_errorbar(aes(ymin=lower, ymax=upper, color=Species_simple), linewidth=0.8, width=0.3, position=position_dodge(width=0.4)) +
+  geom_point(aes(color = Species_simple), size = 3, position = position_dodge(width = 0.4)) +
+  geom_errorbar(aes(ymin = Lower_CI, ymax = Upper_CI, color = Species_simple), linewidth = 0.8, width = 0.3, position = position_dodge(width = 0.4)) +
   ylim(0,1) +
-  labs(x="Species status", y="Conditional occupancy probability") +
-  theme(axis.title.y=element_text(size=14, vjust=4),
-        axis.title.x=element_text(size=14, vjust=-0.5),
-        axis.text.x=element_text(color="black", size=14),
-        axis.text.y=element_text(color="black", size=14),
-        axis.line.x=element_line(color="black", linewidth=0.5),
-        axis.line.y=element_line(color="black", linewidth=0.5)) +
-  theme(panel.background=element_rect(fill='transparent', color=NA),
-        panel.grid.minor=element_blank(),
-        panel.grid.major=element_blank()) +
-  theme(plot.margin=unit(c(1,1,1,1), "cm")) +
-  scale_color_manual(values=c("Mcal" = colors[4], "Rmeg" = colors[2], "Rrav" = colors[1]),
-                     labels=c("Mcal", "Rmeg", "Rrav")) +
-  guides(color=guide_legend(title="Species"))
+  labs(x = "Species status", y = "Conditional occupancy probability") +
+  theme(axis.title.y = element_text(size = 14, vjust = 4),
+        axis.title.x = element_text(size = 14, vjust = -0.5),
+        axis.text.x = element_text(color = "black", size = 14),
+        axis.text.y = element_text(color = "black", size = 14),
+        axis.line.x = element_line(color = "black", linewidth = 0.5),
+        axis.line.y = element_line(color = "black", linewidth = 0.5)) +
+  theme(panel.background = element_rect(fill = 'transparent', color = NA),
+        panel.grid.minor = element_blank(),
+        panel.grid.major = element_blank()) +
+  theme(plot.margin = unit(c(1,1,1,1), "cm")) +
+  scale_color_manual(values = c("Mcal" = colors[4], "Rmeg" = colors[2], "Rrav" = colors[1]),
+                     labels = c("Mcal", "Rmeg", "Rrav")) +
+  guides(color = guide_legend(title = "Species"))
 
 #-----
 #d. Mcal conditional on other species
@@ -1662,8 +1663,8 @@ for(pair in mcal_species_pairs){
     Species = pair,
     Predicted = c(pred_cond_occ$Predicted, pred_abs_occ$Predicted),
     SE = c(pred_cond_occ$SE, pred_abs_occ$SE),
-    lower = c(pred_cond_occ$lower, pred_abs_occ$lower),
-    upper = c(pred_cond_occ$upper, pred_abs_occ$upper)
+    Lower_CI = c(pred_cond_occ$lower, pred_abs_occ$lower),
+    Upper_CI = c(pred_cond_occ$upper, pred_abs_occ$upper)
   )
   mcal_list[[pair]] <- combined
 }
@@ -1679,26 +1680,27 @@ mcal_data$Species_simple <- gsub("Mcal_", "", mcal_data$Species)
 mcal_data$Species_simple <- gsub("No", "", mcal_data$Species_simple)
 
 ggplot(mcal_data, aes(Species_status, Predicted)) +
-  geom_point(aes(color=Species_simple), size=3, position=position_dodge(width=0.4)) +
-  geom_errorbar(aes(ymin=lower, ymax=upper, color=Species_simple), linewidth=0.8, width=0.3, position=position_dodge(width=0.4)) +
+  geom_point(aes(color = Species_simple), size = 3, position = position_dodge(width = 0.4)) +
+  geom_errorbar(aes(ymin = Lower_CI, ymax = Upper_CI, color = Species_simple), linewidth = 0.8, width = 0.3, position = position_dodge(width = 0.4)) +
   ylim(0,1) +
-  labs(x="Species status", y="Conditional occupancy probability") +
-  theme(axis.title.y=element_text(size=14, vjust=4),
-        axis.title.x=element_text(size=14, vjust=-0.5),
-        axis.text.x=element_text(color="black", size=14),
-        axis.text.y=element_text(color="black", size=14),
-        axis.line.x=element_line(color="black", linewidth=0.5),
-        axis.line.y=element_line(color="black", linewidth=0.5)) +
-  theme(panel.background=element_rect(fill='transparent', color=NA),
-        panel.grid.minor=element_blank(),
-        panel.grid.major=element_blank()) +
-  theme(plot.margin=unit(c(1,1,1,1), "cm")) +
-  scale_color_manual(values=c("Mmus" = colors[3], "Rmeg" = colors[2], "Rrav" = colors[1]),
-                     labels=c("Mmus", "Rmeg", "Rrav")) +
-  guides(color=guide_legend(title="Species"))
+  labs(x = "Species status", y = "Conditional occupancy probability") +
+  theme(axis.title.y = element_text(size = 14, vjust = 4),
+        axis.title.x = element_text(size = 14, vjust = -0.5),
+        axis.text.x = element_text(color = "black", size = 14),
+        axis.text.y = element_text(color = "black", size = 14),
+        axis.line.x = element_line(color = "black", linewidth = 0.5),
+        axis.line.y = element_line(color = "black", linewidth = 0.5)) +
+  theme(panel.background = element_rect(fill = 'transparent', color = NA),
+        panel.grid.minor = element_blank(),
+        panel.grid.major = element_blank()) +
+  theme(plot.margin = unit(c(1,1,1,1), "cm")) +
+  scale_color_manual(values = c("Mmus" = colors[3], "Rmeg" = colors[2], "Rrav" = colors[1]),
+                     labels = c("Mmus", "Rmeg", "Rrav")) +
+  guides(color=guide_legend(title = "Species"))
 
 #-------------------------------------------------------------------------------
-#CALCULATE PREDICTED OCCUPANCY AND DETECTION PROBABILITIES
+#CALCULATE PREDICTED OCCUPANCY AND DETECTION PROBABILITIES'
+#######NOTE HELPFUL BECAUSE ONLY APPLICABLE FOR ONE SITE AT A TIME????##########
 
 #1. Occupancy
 #a. Predict probability for each occupancy state
@@ -1708,12 +1710,12 @@ null_occ_probs <- lapply(null_models, function(null_models){
 })
 null_occ_probs[[1]]$Predicted
 
-#b. Calculate predicted marginal occupancy for each species at specific sites (across all possible occupancy states)
+#b. Calculate predicted marginal occupancy (across all possible occupancy states) for each species at site 1
 null_occ_preds <- lapply(null_models, function(null_models){
-  rrav_occ <- predict(null_models, newdata = data.frame(site=1), type="state", species="Rrav")
-  rmeg_occ <- predict(null_models, newdata = data.frame(site=1), type="state", species="Rmeg")
-  mmus_occ <- predict(null_models, newdata = data.frame(site=1), type="state", species="Mmus")
-  mcal_occ <- predict(null_models, newdata = data.frame(site=1), type="state", species="Mcal")
+  rrav_occ <- predict(null_models, newdata = data.frame(site = 1), type = "state", species = "Rrav")
+  rmeg_occ <- predict(null_models, newdata = data.frame(site = 1), type = "state", species = "Rmeg")
+  mmus_occ <- predict(null_models, newdata = data.frame(site = 1), type = "state", species = "Mmus")
+  mcal_occ <- predict(null_models, newdata = data.frame(site = 1), type = "state", species = "Mcal")
   all_occ <- rbind(rrav_occ[1,], rmeg_occ[1,], mmus_occ[1,], mcal_occ[1,])
   all_occ$Species <- c("Rrav", "Rmeg", "Mmus", "Mcal")
   return(all_occ)
@@ -1724,42 +1726,42 @@ null_occ_preds[[1]]$Predicted
 null_occ_pooled <- do.call(rbind, lapply(split(do.call(rbind, null_occ_preds), f = ~ Species), function(species_data){
   mean_pred <- colMeans(species_data[, c("Predicted", "lower", "upper")], na.rm = TRUE)
   return(data.frame(Species = unique(species_data$Species), Predicted = mean_pred["Predicted"],
-                    lower = mean_pred["lower"], upper = mean_pred["upper"]))
+                    Lower_CI = mean_pred["lower"], Upper_CI = mean_pred["upper"]))
 }))
 null_occ_pooled$Species <- factor(null_occ_pooled$Species, levels = c("Rrav", "Rmeg", "Mmus", "Mcal"))
 null_occ_pooled
-#Rrav = 0.507, lower = 0.454, upper = 0.559
-#Rmeg = 0.500, lower = 0.442, upper = 0.555
-#Mmus = 0.678, lower = 0.618, upper = 0.726
-#Mcal = 0.342, lower = 0.274, upper = 0.416
+    #Rrav = 0.507, lower = 0.454, upper = 0.559
+    #Rmeg = 0.500, lower = 0.442, upper = 0.555
+    #Mmus = 0.678, lower = 0.618, upper = 0.726
+    #Mcal = 0.342, lower = 0.274, upper = 0.416
 
 #d. Visualize marginal occupancy for all species
 level_order <- c("Rrav", "Rmeg", "Mmus", "Mcal")
 
-ggplot(null_occ_pooled, aes(x=factor(Species, level=level_order), y=Predicted)) +
-  geom_point(size=3) + 
-  geom_errorbar(aes(ymin=lower, ymax=upper), width=0.3) +
+ggplot(null_occ_pooled, aes(x = factor(Species, level = level_order), y = Predicted)) +
+  geom_point(size = 3) + 
+  geom_errorbar(aes(ymin = Lower_CI, ymax = Upper_CI), width = 0.3) +
   ylim(0.2,1) +
-  labs(x="Species", y="Marginal occupancy and 95% CI") +
-  theme(axis.title.y=element_text(size=14, vjust=4),
-        axis.title.x=element_text(size=14, vjust=-0.5),
-        axis.text.x=element_text(color="black", size=14),
-        axis.text.y=element_text(color="black", size=14),
-        axis.line.x=element_line(color="black", linewidth=0.5),
-        axis.line.y=element_line(color="black", linewidth=0.5)) +
-  theme(panel.background=element_rect(fill='transparent', color=NA),
-        panel.grid.minor=element_blank(),
-        panel.grid.major=element_blank()) +
-  theme(plot.margin=unit(c(1,1,1,1), "cm"))
+  labs(x = "Species", y = "Marginal occupancy and 95% CI") +
+  theme(axis.title.y = element_text(size = 14, vjust = 4),
+        axis.title.x = element_text(size = 14, vjust = -0.5),
+        axis.text.x = element_text(color = "black", size = 14),
+        axis.text.y = element_text(color = "black", size = 14),
+        axis.line.x = element_line(color = "black", linewidth = 0.5),
+        axis.line.y = element_line(color = "black", linewidth = 0.5)) +
+  theme(panel.background = element_rect(fill = 'transparent', color = NA),
+        panel.grid.minor = element_blank(),
+        panel.grid.major = element_blank()) +
+  theme(plot.margin = unit(c(1,1,1,1), "cm"))
 
 #-----
 #2. Detection
-#a. Calculate predicted marginal detection for each species 
+#a. Calculate predicted marginal detection for each species at site 1
 null_det_preds <- lapply(null_models, function(null_models){
-  rrav_det <- predict(null_models, newdata = data.frame(site=1), type="det", species="Rrav")
-  rmeg_det <- predict(null_models, newdata = data.frame(site=1), type="det", species="Rmeg")
-  mmus_det <- predict(null_models, newdata = data.frame(site=1), type="det", species="Mmus")
-  mcal_det <- predict(null_models, newdata = data.frame(site=1), type="det", species="Mcal")
+  rrav_det <- predict(null_models, newdata = data.frame(site = 1), type = "det", species = "Rrav")
+  rmeg_det <- predict(null_models, newdata = data.frame(site = 1), type = "det", species = "Rmeg")
+  mmus_det <- predict(null_models, newdata = data.frame(site = 1), type = "det", species = "Mmus")
+  mcal_det <- predict(null_models, newdata = data.frame(site = 1), type = "det", species = "Mcal")
   all_det <- rbind(rrav_det[1,], rmeg_det[1,], mmus_det[1,], mcal_det[1,])
   all_det$Species <- c("Rrav", "Rmeg", "Mmus", "Mcal")
   return(all_det)
@@ -1770,28 +1772,28 @@ null_det_preds[[1]]$Predicted
 null_det_pooled <- do.call(rbind, lapply(split(do.call(rbind, null_det_preds), f = ~ Species), function(species_data){
   mean_pred <- colMeans(species_data[, c("Predicted", "lower", "upper")], na.rm = TRUE)
   return(data.frame(Species = unique(species_data$Species), Predicted = mean_pred["Predicted"],
-                    lower = mean_pred["lower"], upper = mean_pred["upper"]))
+                    Lower_CI = mean_pred["lower"], Upper_CI = mean_pred["upper"]))
 }))
 null_det_pooled$Species <- factor(null_det_pooled$Species, levels = c("Rrav", "Rmeg", "Mmus", "Mcal"))
 null_det_pooled
-#Rrav = 0.380, lower = 0.361, upper = 0.400
-#Rmeg = 0.271, lower = 0.252, upper = 0.290
-#Mmus = 0.367, lower = 0.350, upper = 0.384
-#Mcal = 0.094, lower = 0.075, upper = 0.116
+    #Rrav = 0.380, lower = 0.361, upper = 0.400
+    #Rmeg = 0.271, lower = 0.252, upper = 0.290
+    #Mmus = 0.367, lower = 0.350, upper = 0.384
+    #Mcal = 0.094, lower = 0.075, upper = 0.116
 
 #c. Visualize detection probabilities for all species
-ggplot(null_det_pooled, aes(x=factor(Species, level=level_order), y=Predicted)) +
-  geom_point(size=3) + 
-  geom_errorbar(aes(ymin=lower, ymax=upper), width=0.3) +
+ggplot(null_det_pooled, aes(x = factor(Species, level = level_order), y = Predicted)) +
+  geom_point(size = 3) + 
+  geom_errorbar(aes(ymin = Lower_CI, ymax = Upper_CI), width = 0.3) +
   ylim(0.05,1) +
-  labs(x="Species", y="Detection probability and 95% CI") +
-  theme(axis.title.y=element_text(size=14, vjust=4),
-        axis.title.x=element_text(size=14, vjust=-0.5),
-        axis.text.x=element_text(color="black", size=14),
-        axis.text.y=element_text(color="black", size=14),
-        axis.line.x=element_line(color="black", linewidth=0.5),
-        axis.line.y=element_line(color="black", linewidth=0.5)) +
-  theme(panel.background=element_rect(fill='transparent', color=NA),
-        panel.grid.minor=element_blank(),
-        panel.grid.major=element_blank()) +
-  theme(plot.margin=unit(c(1,1,1,1), "cm"))
+  labs(x = "Species", y = "Detection probability and 95% CI") +
+  theme(axis.title.y = element_text(size = 14, vjust = 4),
+        axis.title.x = element_text(size = 14, vjust = -0.5),
+        axis.text.x = element_text(color = "black", size = 14),
+        axis.text.y = element_text(color = "black", size = 14),
+        axis.line.x = element_line(color = "black", linewidth = 0.5),
+        axis.line.y = element_line(color = "black", linewidth = 0.5)) +
+  theme(panel.background = element_rect(fill = 'transparent', color = NA),
+        panel.grid.minor = element_blank(),
+        panel.grid.major = element_blank()) +
+  theme(plot.margin = unit(c(1,1,1,1), "cm"))
