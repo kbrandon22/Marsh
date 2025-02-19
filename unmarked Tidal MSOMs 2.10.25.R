@@ -613,37 +613,100 @@ mean(sapply(global_pen_models, function(model) model@AIC))
 global_pen_models_flat <- unlist(global_pen_models, recursive = FALSE)
 global_models_flat <- unlist(global_models, recursive = FALSE)
 
-#b. Define a function to calculate goodness-of-fit (GOF) measures (SSE, Chi-square, Freeman-Tukey)
+
+str(global_models_flat[[1]]@data@ylist)
+
+#b. Define a function to calculate goodness-of-fit (GOF) measures (e.g., Chi-square)
+fitstats <- function(model) {
+  
+  #Extract observed detection histories
+  ylist <- model@data@ylist
+  obs_freq <- numeric(0)
+  exp_freq <- numeric(0)
+  
+  for(species in names(ylist)){
+    y <- ylist[[species]]
+    det_hist <- apply(y, 1, paste, collapse = "")
+    obs_freq[[species]] <- table(det_hist)
+    exp_probs <- fitted(model)[[species]]
+    unique_hist <- names(obs_freq[[species]])
+    exp_freq[[species]] <- sapply(unique_hist, function(i){
+      indices <- which(det_hist == i)
+      mean_prob <- mean(exp_probs[indices])
+      return(mean_prob*length(indices))
+    })
+  }
+  
+  #Pool low-frequency histories
+  pooled_threshold <- 5    #Minimum expected count for Chi-square validity
+  pooled_obs <- unlist(obs_freq)
+  pooled_exp <- unlist(exp_freq)
+  if(any(pooled_exp < pooled_threshold)) {
+    pooled_obs["Other"] <- sum(pooled_obs[pooled_exp < pooled_threshold])
+    pooled_exp["Other"] <- sum(pooled_exp[pooled_exp < pooled_threshold])
+    pooled_obs <- pooled_obs[pooled_exp >= pooled_threshold]
+    pooled_exp <- pooled_exp[pooled_exp >= pooled_threshold]
+  }
+  
+  #Compute Chi-square statistic
+  chisq <- sum((pooled_obs-pooled_exp)^2/pooled_exp, na.rm = TRUE)
+  
+  #Return fit statistics
+  return(c(Chisq = chisq))
+}
+
+#OR
 fitstats <- function(model){
-  resids <- do.call(rbind, residuals(model))
-  observed <- do.call(rbind, model@data@ylist)
-  expected <- do.call(rbind, fitted(model))
-  SSE <- sum(resids^2, na.rm = TRUE)
-  Chisq <- sum((observed-expected)^2/expected, na.rm = TRUE)
-  freeTuke <- sum((sqrt(observed)-sqrt(expected))^2, na.rm = TRUE)
-  out <- c(SSE = SSE, Chisq = Chisq, freemanTukey = freeTuke)
-  return(out)
+  ylist <- model@data@ylist
+  pooled_obs <- numeric(0)
+  pooled_exp <- numeric(0)
+  for(species in names(ylist)){
+    y <- ylist[[species]]
+    obs_sum <- rowSums(y)
+    exp_probs <- fitted(model)[[species]]
+    exp_sum <- rowSums(exp_probs)
+    pooled_obs <- c(pooled_obs, obs_sum)
+    pooled_exp <- c(pooled_exp, exp_sum)
+  }
+  pooled_threshold <- 5
+  if(any(pooled_exp < pooled_threshold)){
+    pooled_obs["Other"] <- sum(pooled_obs[pooled_exp < pooled_threshold])
+    pooled_exp["Other"] <- sum(pooled_exp[pooled_exp < pooled_threshold])
+    pooled_obs <- pooled_obs[pooled_exp >= pooled_threshold]
+    pooled_exp <- pooled_exp[pooled_exp >= pooled_threshold]
+  }
+  chisq <- sum((pooled_obs-pooled_exp)^2/pooled_exp, na.rm = TRUE)
+  return(c(Chisq = chisq))
 }
 
 #c. Initiate parallel computing - this needs to be reinitialized for each parallel computing segment
 cl <- makeCluster(detectCores() - 1)  
-clusterExport(cl, c("global_pen_models_flat", "fitstats", "parboot"))
 clusterExport(cl, c("global_models_flat", "fitstats", "parboot"))
 clusterEvalQ(cl, library(unmarked))
 
 #d. Assess GOF and save the results
-global_pen_fit <- parLapply(cl, global_pen_models_flat, function(model){
-  parboot(model, fitstats, nsim = 100)
-})
-
 global_fit <- parLapply(cl, global_models_flat, function(model){
   parboot(model, fitstats, nsim = 100)
 })
 stopCluster(cl)
-save(global_pen_fit, file = "GOF_global_pen_models.Rdata")
 save(global_fit, file = "GOF_global_models.Rdata")
-load("GOF_global_pen_models.Rdata")
 load("GOF_global_models.Rdata")
+
+#e. Compute c-hat
+c_hat <- global_fit@t0["ChiSquare"]/mean(global_fit@t[, "ChiSquare"])   #Observed/mean 
+
+
+
+cl <- makeCluster(detectCores() - 1)
+clusterExport(cl, c("global_models_pen_flat", "fitstats", "parboot"))
+clusterEvalQ(cl, library(unmarked))
+
+global_pen_fit <- parLapply(cl, global_pen_models_flat, function(model){
+  parboot(model, fitstats, nsim = 100)
+})
+stopCluster(cl)
+save(global_pen_fit, file = "GOF_global_pen_models.Rdata")
+load("GOF_global_pen_models.Rdata")
 
 #e. Define a function to extract and pool fit statistics 
 pool_fitstats <- function(pool_fit){
