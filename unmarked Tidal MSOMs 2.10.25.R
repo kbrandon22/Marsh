@@ -613,53 +613,15 @@ mean(sapply(global_pen_models, function(model) model@AIC))
 global_pen_models_flat <- unlist(global_pen_models, recursive = FALSE)
 global_models_flat <- unlist(global_models, recursive = FALSE)
 
-
-str(global_models_flat[[1]]@data@ylist)
-
 #b. Define a function to calculate goodness-of-fit (GOF) measures (e.g., Chi-square)
-fitstats <- function(model) {
-  
-  #Extract observed detection histories
-  ylist <- model@data@ylist
-  obs_freq <- numeric(0)
-  exp_freq <- numeric(0)
-  
-  for(species in names(ylist)){
-    y <- ylist[[species]]
-    det_hist <- apply(y, 1, paste, collapse = "")
-    obs_freq[[species]] <- table(det_hist)
-    exp_probs <- fitted(model)[[species]]
-    unique_hist <- names(obs_freq[[species]])
-    exp_freq[[species]] <- sapply(unique_hist, function(i){
-      indices <- which(det_hist == i)
-      mean_prob <- mean(exp_probs[indices])
-      return(mean_prob*length(indices))
-    })
-  }
-  
-  #Pool low-frequency histories
-  pooled_threshold <- 5    #Minimum expected count for Chi-square validity
-  pooled_obs <- unlist(obs_freq)
-  pooled_exp <- unlist(exp_freq)
-  if(any(pooled_exp < pooled_threshold)) {
-    pooled_obs["Other"] <- sum(pooled_obs[pooled_exp < pooled_threshold])
-    pooled_exp["Other"] <- sum(pooled_exp[pooled_exp < pooled_threshold])
-    pooled_obs <- pooled_obs[pooled_exp >= pooled_threshold]
-    pooled_exp <- pooled_exp[pooled_exp >= pooled_threshold]
-  }
-  
-  #Compute Chi-square statistic
-  chisq <- sum((pooled_obs-pooled_exp)^2/pooled_exp, na.rm = TRUE)
-  
-  #Return fit statistics
-  return(c(Chisq = chisq))
-}
-
-#OR
 fitstats <- function(model){
+  
+  #Extract observed detection histories and initiate vectors to store results
   ylist <- model@data@ylist
   pooled_obs <- numeric(0)
   pooled_exp <- numeric(0)
+  
+  #Compute the expected and observed sum of rows (i.e., sites) for each species
   for(species in names(ylist)){
     y <- ylist[[species]]
     obs_sum <- rowSums(y)
@@ -668,13 +630,17 @@ fitstats <- function(model){
     pooled_obs <- c(pooled_obs, obs_sum)
     pooled_exp <- c(pooled_exp, exp_sum)
   }
-  pooled_threshold <- 5
+  
+  #Pool low-frequency detection histories
+  pooled_threshold <- 5     #Minimum expected count for Chi-square validity
   if(any(pooled_exp < pooled_threshold)){
     pooled_obs["Other"] <- sum(pooled_obs[pooled_exp < pooled_threshold])
     pooled_exp["Other"] <- sum(pooled_exp[pooled_exp < pooled_threshold])
     pooled_obs <- pooled_obs[pooled_exp >= pooled_threshold]
     pooled_exp <- pooled_exp[pooled_exp >= pooled_threshold]
   }
+  
+  #Compute and return chi-square statistic
   chisq <- sum((pooled_obs-pooled_exp)^2/pooled_exp, na.rm = TRUE)
   return(c(Chisq = chisq))
 }
@@ -692,13 +658,28 @@ stopCluster(cl)
 save(global_fit, file = "GOF_global_models.Rdata")
 load("GOF_global_models.Rdata")
 
-#e. Compute c-hat
-c_hat <- global_fit@t0["ChiSquare"]/mean(global_fit@t[, "ChiSquare"])   #Observed/mean 
+#e. Compute and pool c-hat across imputed models
+pool_fitstats <- function(pool_fit){
+  chisq_p <- sapply(pool_fit, function(fit) mean(fit@t.star >= fit@t0))
+  chisq <- sapply(pool_fit, function(fit) fit@t0)
+  chat_chisq <- sapply(pool_fit, function(fit) fit@t0/mean(fit@t.star))
+  pooled_chisq_p <- mean(chisq_p)
+  fit_pooled <- list(
+    Chisq = mean(chisq, na.rm = TRUE),
+    Chisq_p = pooled_chisq_p,
+    Chisq_chat = mean(chat_chisq, na.rm = TRUE)
+  )
+  return(fit_pooled)
+}
+
+global_fit_pooled <- pool_fitstats(global_fit)
+global_fit_pooled
+    #Chi-square p = 0, c-hat = 1.85 (moderately overdispersed)
 
 
-
+#TEST: PENALIZED MODEL GOF
 cl <- makeCluster(detectCores() - 1)
-clusterExport(cl, c("global_models_pen_flat", "fitstats", "parboot"))
+clusterExport(cl, c("global_pen_models_flat", "fitstats", "parboot"))
 clusterEvalQ(cl, library(unmarked))
 
 global_pen_fit <- parLapply(cl, global_pen_models_flat, function(model){
