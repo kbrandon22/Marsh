@@ -603,10 +603,15 @@ global_pen_models <- lapply(global_models, penalize_model)
 save(global_pen_models, file = "Global_pen_models.Rdata")
 load("Global_pen_models.Rdata")
 
+mean(sapply(global_models, function(model) model@AIC))
+mean(sapply(global_pen_models, function(model) model@AIC))
+    #Unpenalized may be better fit with lower AIC (8998 vs 9051)
+
 #-----
 #4. Assess goodness-of-fit on model residuals
 #a. Flatten the list of models
-global_models_flat <- unlist(global_pen_models, recursive = FALSE)
+global_pen_models_flat <- unlist(global_pen_models, recursive = FALSE)
+global_models_flat <- unlist(global_models, recursive = FALSE)
 
 #b. Define a function to calculate goodness-of-fit (GOF) measures (SSE, Chi-square, Freeman-Tukey)
 fitstats <- function(model){
@@ -622,16 +627,23 @@ fitstats <- function(model){
 
 #c. Initiate parallel computing - this needs to be reinitialized for each parallel computing segment
 cl <- makeCluster(detectCores() - 1)  
-clusterExport(cl, c("global_models_flat", "fitstats"))
+clusterExport(cl, c("global_pen_models_flat", "fitstats", "parboot"))
+clusterExport(cl, c("global_models_flat", "fitstats", "parboot"))
 clusterEvalQ(cl, library(unmarked))
 
 #d. Assess GOF and save the results
-global_pen_fit <- parLapply(cl, global_models_flat, function(model){
+global_pen_fit <- parLapply(cl, global_pen_models_flat, function(model){
+  parboot(model, fitstats, nsim = 100)
+})
+
+global_fit <- parLapply(cl, global_models_flat, function(model){
   parboot(model, fitstats, nsim = 100)
 })
 stopCluster(cl)
 save(global_pen_fit, file = "GOF_global_pen_models.Rdata")
+save(global_fit, file = "GOF_global_models.Rdata")
 load("GOF_global_pen_models.Rdata")
+load("GOF_global_models.Rdata")
 
 #e. Define a function to extract and pool fit statistics 
 pool_fitstats <- function(pool_fit){
@@ -671,6 +683,7 @@ pool_fitstats <- function(pool_fit){
 
 #f. Pool the fit statistics
 global_fit_pooled <- pool_fitstats(global_pen_fit)
+global_fit_pooled
     #Model is moderately overdispersed (Chi-square statistic = 0, c-hat = 1.77)
 
 #g. Assess other model fit diagnostics (e.g., convergence, parameterization, SEs)
@@ -685,6 +698,7 @@ global_quasi_results <- lapply(global_pen_models, function(model){
   summaryOD(model, c.hat = 1.77, conf.level = 0.95, out.type = "confint")
 })
 global_quasi_results
+global_pen_models
 
 #-----
 #NOT APPROPRIATE BECAUSE MODELS ARE NON-PARAMETRIC DUE TO PENALIZATION AND QUASI-ADJUSTMENT - EXCLUDE???
@@ -755,7 +769,7 @@ null_quasi_results <- lapply(null_models, function(model){
 null_quasi_results
 
 #-----
-#NOT ACCEPTABLE
+#NOT ACCEPTABLE??
 #3. Pool results with Rubin's rules for variance estimation
 null_results <- pool_quasi(null_quasi_results)
 null_results
@@ -769,7 +783,7 @@ null_results
 #4. Back-transform to get occupancy and detection estimates
 #a. Occupancy
 null_occ <- list()
-for(i in seq_along(null_models)){
+for(i in seq_along(null_quasi_results)){
   
   #Get occupancy estimates
   occ_estimates <- null_models[[i]]@estimates@estimates$state
@@ -791,11 +805,11 @@ for(i in seq_along(null_models)){
   )
 }
 null_occ
-    #Rrav occupancy is 0.39, Rmeg is 0.38, Mmus is 0.49, Mcal is 0.15
+    #Rrav occupancy is 0.40, Rmeg is 0.38, Mmus is 0.49, Mcal is 0.15
 
 #b. Detection
 null_det <- list()
-for(i in seq_along(null_models)){
+for(i in seq_along(null_quasi_results)){
   
   #Get detection estimates
   det_estimates <- null_models[[i]]@estimates@estimates$det
@@ -892,8 +906,8 @@ det_model <- id_best_model(det_models)
 det_model
     #Best fitting model is ~Effort + Year
 
-#c. Compare null and detection models
-null_aic <- sapply(null_models, function(x) x@AIC)
+#c. Compare null and detection models - UPDATE WITH QUASI-ADJUSTED NULL MODEL, NEED TO CALCULATE AIC
+null_aic <- sapply(null_quasi_results, function(x) x$AIC)
 null_aic[[1]]
 det_aic <- sapply(det_model, function(x) x$AIC)
 det_aic[[1]]
