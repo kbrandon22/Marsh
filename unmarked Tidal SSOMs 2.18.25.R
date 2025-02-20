@@ -275,8 +275,8 @@ pooled_results <- transform_covs(
   transformations = transformations
 )
 pooled_results
-#Linear connectivity is a better predictor of Rmeg occupancy and log area is a better predictor
-#of Rrav occupancy, but all other independent variables have delta AIC <=2
+    #Linear connectivity is a better predictor of Rmeg occupancy and log area is a better predictor
+    #of Rrav occupancy, but all other independent variables have delta AIC <=2
 
 ####################KEEP, EXCLUDE TRANSFORM#########################
 #f. Scale and transform independent variables (as needed)
@@ -336,7 +336,7 @@ for(species in species_list){
   vif_results[[species]] <- dep_vif
 }
 vif_results
-#No collinearity between independent variables, okay to keep all in model
+    #No collinearity between independent variables, okay to keep all in model
 
 #----------
 #4. Explore non-additive effects of interactions
@@ -485,7 +485,7 @@ Mcal <- as.matrix(Mcal)
 #2. Create data frame of standardized independent variables
 #a. Extract variable names
 covs <- colnames(rodent_imp[[1]])
-covs <- covs[c(7:8, 10:14)]        #Edit to include log_area if needed
+covs <- covs[c(7:9, 10:14)]        #Edit to include log_area if needed
 
 #b. Define a function to extract variables and convert characters to factor
 extract_covs <- function(data, scale_covs){
@@ -680,6 +680,7 @@ rrav_global_gof <- lapply(global_models_rrav_flat, function(model){
 })
 rrav_global_gof
     #Models are not a good fit. Chi-square statistic is huge, p-value is 0, and quantiles/c-hat are unable to be estimated
+    #Tested with Log_Area as well but Chi-square statistic increased
 
 #b. Rmeg
 #1) Flatten the list of models
@@ -714,7 +715,7 @@ mcal_global_gof <- lapply(global_models_mcal_flat, function(model){
 mcal_global_gof
     #Same issues
 
-
+#-----
 #4. Check why models are poor fit
 #a. Look at unique number of detection histories (should not be one or two)
 table(apply(umf_list_rrav[[1]]@y, 1, paste, collapse = ""))     
@@ -737,7 +738,7 @@ sapply(global_models_rmeg, extractCN)
 sapply(global_models_mmus, extractCN)
 sapply(global_models_mcal, extractCN)
     #Condition numbers are highest for Rrav (~5000) but all others are ~100 for most imputed models
-    #Likely not overparameterized
+    #Likely not overparameterized, but try fitting simpler models to determine if fit improves
 
 #3) Check parameter SSEs
 lapply(global_models_rrav, checkParms)
@@ -745,4 +746,116 @@ lapply(global_models_rmeg, checkParms)
 lapply(global_models_mmus, checkParms)
 lapply(global_models_mcal, checkParms)
     #Rrav has the highest standard errors, but still not concerning
+
+#-----
+#5. Fit simplified models without interaction term
+#a. Define the independent variables
+model_covs <- c("Area", "Dist_urban", "Above_MHW", "Connectivity", "Connectivity:Area")
+model_covs_noint <- c("Area", "Dist_urban", "Above_MHW", "Connectivity")
+model_covs_simple <- c("Dist_urban", "Above_MHW", "Connectivity")
+
+#b. Fit the models
+#1) Rrav
+#a) Define a function to fit the model
+fit_global_models_rrav <- function(umf_list_rrav){
+  model_list <- list()
+  state_formula <- paste("~", paste(model_covs, collapse = "+"))
+  det_formula <- c("~Effort + Year")
+  for(i in seq_along(umf_list_rrav)){
+    model_list[[i]] <- occu(
+      formula = as.formula(paste(det_formula, "~", state_formula)),
+      control = list(maxit = 5000),
+      data = umf_list_rrav[[i]]
+    )
+  }
+  return(model_list)
+}
+
+fit_global_models_rrav_noint <- function(umf_list_rrav){
+  model_list <- list()
+  state_formula <- paste("~", paste(model_covs_noint, collapse = "+"))
+  det_formula <- c("~Effort + Year")
+  for(i in seq_along(umf_list_rrav)){
+    model_list[[i]] <- occu(
+      formula = as.formula(paste(det_formula, "~", state_formula)),
+      control = list(maxit = 5000),
+      data = umf_list_rrav[[i]]
+    )
+  }
+  return(model_list)
+}
+
+fit_global_models_rrav_simple <- function(umf_list_rrav){
+  model_list <- list()
+  state_formula <- paste("~", paste(model_covs_simple, collapse = "+"))
+  det_formula <- c("~Effort + Year")
+  for(i in seq_along(umf_list_rrav)){
+    model_list[[i]] <- occu(
+      formula = as.formula(paste(det_formula, "~", state_formula)),
+      control = list(maxit = 5000),
+      data = umf_list_rrav[[i]]
+    )
+  }
+  return(model_list)
+}
+
+#2) Apply the function
+global_models_rrav <- fit_global_models_rrav(umf_list_rrav)
+summary(global_models_rrav[[1]])
+
+global_models_rrav_noint <- fit_global_models_rrav_noint(umf_list_rrav)
+summary(global_models_rrav_noint[[1]])
+
+global_models_rrav_simple <- fit_global_models_rrav_simple(umf_list_rrav)
+summary(global_models_rrav_simple[[1]])
+
+#c. Re-assess goodness-of-fit on model residuals
+#1) Rrav
+#a) Flatten the list of models
+global_models_rrav_flat <- unlist(global_models_rrav, recursive = FALSE)
+global_models_rrav_noint_flat <- unlist(global_models_rrav_noint, recursive = FALSE)
+global_models_rrav_simple_flat <- unlist(global_models_rrav_simple, recursive = FALSE)
+
+#b) Calculate fit statistics
+#i) Full model
+cl <- makeCluster(detectCores() - 1)  
+clusterExport(cl, c("global_models_rrav_flat", "mb.gof.test"))
+clusterEvalQ(cl, library("unmarked", "AICcmodavg"))
+
+rrav_global_gof <- parLapply(cl, global_models_rrav_flat, function(model){
+  mb.gof.test(model, nsim = 10000, plot.hist = FALSE)
+})
+stopCluster(cl)
+rrav_global_gof[[1]]
+
+#ii) Without interaction
+cl <- makeCluster(detectCores() - 1)  
+clusterExport(cl, c("global_models_rrav_noint_flat", "mb.gof.test"))
+clusterEvalQ(cl, library("unmarked", "AICcmodavg"))
+
+rrav_global_noint_gof <- parLapply(cl, global_models_rrav_noint_flat, function(model){
+  mb.gof.test(model, nsim = 10000, plot.hist = FALSE)
+})
+stopCluster(cl)
+rrav_global_noint_gof[[1]]
+
+#iii) Without interaction or Area
+cl <- makeCluster(detectCores() - 1)  
+clusterExport(cl, c("global_models_rrav_simple_flat", "mb.gof.test"))
+clusterEvalQ(cl, library("unmarked", "AICcmodavg"))
+
+rrav_global_simple_gof <- parLapply(global_models_rrav_simple_flat, function(model){
+  mb.gof.test(model, nsim = 10000, plot.hist = FALSE)
+})
+stopCluster(cl)
+rrav_global_simple_gof[[1]]
+    #Models are still not a good fit and this was worsened by removing independent variables
+
+#d. Compare model fit with AIC
+mean(sapply(global_models_rrav, function(model) model@AIC))
+mean(sapply(global_models_rrav_noint, function(model) model@AIC))
+mean(sapply(global_models_rrav_simple, function(model) model@AIC))
+    #AIC is lowest for global model with all variables, but only marginally (about 20-40 points)
+
+#e. Manually calculate c-hat?
 
