@@ -581,6 +581,182 @@ summary(umf_list_mcal[[1]])
 plot(umf_list_mcal[[1]])
 
 #-------------------------------------------------------------------------------
+#DETECTION MODELS
+
+#1. Fit detection models
+#a. Assign detection covariates
+det_vars <- c("Effort", "Year")
+
+#b. Generate all combinations of covariates
+det_combos <- expand.grid(
+  Effort = c(TRUE, FALSE),
+  Year = c(TRUE, FALSE)
+)
+
+#c. Define a function to create detection formulas
+create_det_formula <- function(combo, covariates){
+  combo_logical <- as.logical(unlist(combo))
+  terms <- covariates[combo_logical]
+  det_formula <- if(length(terms) > 0){
+    as.formula(paste("~", paste(terms, collapse = "+")))
+  } else {
+    ~1
+  }
+  return(det_formula)
+}
+
+#d. Define a function to fit the models 
+fit_det_models <- function(umf_list, det_combos, stateformulas){
+  det_results <- list()
+  for(i in seq_along(umf_list)){
+    for(j in 1:nrow(det_combos)){
+      combo <- det_combos[j, ]
+      det_formula <- create_det_formula(combo, det_vars)
+      model <- occuMulti(
+        stateformulas = stateformulas,
+        detformulas = as.character(rep(list(det_formula), 4)),
+        data = umf_list[[i]],
+        maxOrder = 2
+      )
+      det_results[[length(det_results) + 1]] <- list(
+        model = model,
+        formula = det_formula,
+        AIC = model@AIC
+      )
+    }
+  }
+  return(det_results)
+}
+
+#e. Apply the function
+det_models <- fit_det_models(
+  umf_list = umf_list,
+  det_combos = det_combos,
+  stateformulas = stateformulas
+)
+det_models
+
+#-----
+#2. Compare model performance with AIC
+#a. Define a function to extract models with delta AIC <=2
+id_best_model <- function(det){
+  det_aic <- sapply(det, function(x) x$AIC)
+  best_aic <- min(det_aic)
+  models <- det[det_aic - best_aic <= 2]
+  return(models)
+}
+
+#b. Apply the function
+det_model <- id_best_model(det_models)
+det_model
+#Best fitting model is ~Effort + Year
+
+#c. Compare null and detection models - UPDATE WITH QUASI-ADJUSTED NULL MODEL, NEED TO CALCULATE AIC
+null_aic <- sapply(null_quasi_results, function(x) x$AIC)
+null_aic[[1]]
+det_aic <- sapply(det_model, function(x) x$AIC)
+det_aic[[1]]
+#The detection variables have improved model fit
+
+#-----
+#3. Assess goodness-of-fit on model residuals
+#a. Flatten the list of global models (i.e., best fitting model, in this case)
+global_det_model <- lapply(det_model, function(x) x$model)
+
+#b. Initiate parallel computing
+cl <- makeCluster(detectCores() - 1)  
+clusterExport(cl, c("global_det_model", "fitstats"))
+clusterEvalQ(cl, library(unmarked))
+
+#c. Assess GOF for global detection models
+global_det_fit <- parLapply(cl, global_det_model, function(model){
+  parboot(model, fitstats, nsim = 100)
+})
+stopCluster(cl)
+
+#d. Save the results of the goodness-of-fit test 
+save(global_det_fit, file = "GOF_global_det_mod.Rdata")
+load("GOF_global_det_mod.Rdata")
+
+#e. Pool the results
+det_fit_pooled <- pool_fitstats(global_det_fit)
+#Model is moderately overdispersed (Chi-square statistic = 0, c-hat = 1.35)
+
+#f. Model fit diagnostics (e.g., convergence, parameterization, SEs)
+checkConv(global_det_model[[1]])            
+sapply(global_det_model, extractCN)         #Does not have excessively high condition numbers, likely not over-parameterized
+lapply(global_det_model, checkParms)    
+#Other fit diagnostics look okay, use c-hat to adjust for overdispersion
+
+#-----
+#4. Account for overdispersion with quasi-likelihood adjustment
+#a. Apply the adjustment by specifying c-hat
+quasi_det_results <- lapply(global_det_model, function(model){
+  summaryOD(model, c.hat = 1.35, conf.level = 0.95, out.type = "confint")
+})
+quasi_det_results
+
+#-----
+#5. Pool the results with Rubin's rules
+pooled_det_quasi_results <- pool_quasi(quasi_det_results)
+pooled_det_quasi_results
+
+#-----
+#6. Predict how detection varies with independent variables
+#a. Define a range of effort values and years for prediction
+effort_range <- seq(min(rodent_imp[[1]]$Effort), max(rodent_imp[[1]]$Effort), length.out = 100)
+years <- c(0, 1)
+
+#b. Generate prediction detection probabilities for each combination of effort and year
+det_preds <- lapply(global_det_model, function(model) {
+  expand.grid(Effort = effort_range, Year = years) %>%
+    mutate(Year = as.factor(Year)) %>%
+    rowwise() %>%
+    mutate(
+      Rrav = predict(model, newdata = data.frame(Effort = Effort, Year = Year), type = "det", species = "Rrav"),
+      Rmeg = predict(model, newdata = data.frame(Effort = Effort, Year = Year), type = "det", species = "Rmeg"),
+      Mmus = predict(model, newdata = data.frame(Effort = Effort, Year = Year), type = "det", species = "Mmus"),
+      Mcal = predict(model, newdata = data.frame(Effort = Effort, Year = Year), type = "det", species = "Mcal")
+    ) %>%
+    ungroup()
+})
+print(det_preds[[1]], n = Inf)
+#Detection varies for each species based on Effort and Year, with detection probability 
+#for all species except Mmus being higher in 2020 than 2022
+
+#c. Visualize trends in detection based on effort and year
+#1) Define the species
+species <- c("Rrav", "Rmeg", "Mmus", "Mcal")
+
+#2) Combine predictions into a single data frame
+det_preds_df <- do.call(rbind, lapply(seq_along(det_preds), function(i) {
+  df <- det_preds[[i]] %>%
+    pivot_longer(cols = all_of(species), names_to = "Species", values_to = "Predicted")
+  df$Model <- i
+  return(df)
+}))
+det_preds_df$Model
+
+#3) Plot predicted detection probability vs effort for each species and each year
+ggplot(det_preds_df, aes(x = Effort, y = Predicted$Predicted, color = as.factor(Year))) +
+  geom_line(linewidth = 1) +
+  facet_wrap(~Species, scales = "free_y") +
+  labs(title = "Detection Probability vs Effort by Species and Year",
+       x = "Effort", 
+       y = "Detection Probability",
+       color = "Year") +
+  theme_minimal() +
+  scale_color_manual(values = c("0" = "blue", "1" = "red"))
+
+#4) Plot predicted detection probability vs year
+ggplot(det_preds_df, aes(x = Year, y = Predicted$Predicted, color = as.factor(Year))) +
+  geom_boxplot() +
+  labs(title = "Detection Probability by Year",
+       x = "Year", y = "Predicted Detection Probability") +
+  theme_minimal() +
+  scale_color_manual(values = c("0" = "blue", "1" = "red"))
+
+#-------------------------------------------------------------------------------
 #GLOBAL OCCUPANCY MODEL
 
 #1. Define the independent variables
