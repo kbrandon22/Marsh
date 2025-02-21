@@ -85,7 +85,7 @@ summary(imp)
 #d. Perform diagnostics and summarize imputation effectiveness with plots
 plot(imp, layout = c(1,2))   
 mice::stripplot(imp, Above_MHW ~.imp, pch = 20, cex = 2)
-#All imputed values (in red) are among observed values (in blue) and are therefore plausible
+    #All imputed values (in red) are among observed values (in blue) and are therefore plausible
 
 #e. Extract imputed data sets
 imputed <- lapply(1:imp$m, function(i) complete(imp, i))
@@ -178,10 +178,10 @@ ggplot(rodent_imp[[1]], aes(x = Connectivity, y = Occupancy)) +
        x = "Connectivity", 
        y = "Occupancy Probability") +
   theme_minimal()
-#NOTE: For each species, all covariates exhibit cubic or higher-order 
-#polynomial relationships with occupancy. However, due to difficulty in 
-#interpreting these relationships, select only those that are biologically
-#relevant to test with AIC
+    #NOTE: For each species, all covariates exhibit cubic or higher-order 
+    #polynomial relationships with occupancy. However, due to difficulty in 
+    #interpreting these relationships, select only those that are biologically
+    #relevant to test with AIC
 
 #----------
 ################EXCLUDE???###################
@@ -371,8 +371,8 @@ preds_coefs <- lapply(seq_along(conn_area_models), function(i){
 preds_df <- bind_rows(lapply(preds_coefs, `[[`, "preds"))
 coefs_df <- bind_rows(lapply(preds_coefs, `[[`, "coefs"))
 coefs_df
-#There is evidence of an interaction (p < 0.05), although estimates are small
-#Plot to confirm
+    #There is evidence of an interaction (p < 0.05), although estimates are small
+    #Plot to confirm
 
 #3) Visualize the interaction as it relates to occupancy, holding one covariate constant
 #a) Fit the linear model to the list of imputed data sets
@@ -459,9 +459,9 @@ ggplot(plot_data, aes(x = ifelse(Variable == "Area", Area, Connectivity),
   facet_wrap(Imp~Species, scales = "free_x", nrow = 10, ncol = 4) +
   theme(strip.text = element_text(size = 8),
         panel.spacing = unit(1, "lines"))
-#The interaction between connectivity and area likely exists, as evidenced by 
-#the intersecting lines. It is weakest for Mcal and the directionality changes 
-#based on the species. 
+    #The interaction between connectivity and area likely exists, as evidenced by 
+    #the intersecting lines. It is weakest for Mcal and the directionality changes 
+    #based on the species. 
 
 #-------------------------------------------------------------------------------
 #FORMULATE THE DATA
@@ -485,7 +485,7 @@ Mcal <- as.matrix(Mcal)
 #2. Create data frame of standardized independent variables
 #a. Extract variable names
 covs <- colnames(rodent_imp[[1]])
-covs <- covs[c(7:9, 10:14)]        #Edit to include log_area if needed
+covs <- covs[c(7:9, 10:14)]        
 
 #b. Define a function to extract variables and convert characters to factor
 extract_covs <- function(data, scale_covs){
@@ -606,18 +606,15 @@ create_det_formula <- function(combo, covariates){
 }
 
 #d. Define a function to fit the models 
-fit_det_models <- function(umf_list, det_combos, stateformulas){
+#1) Rrav
+fit_det_models_rrav <- function(umf_list_rrav, det_combos){
   det_results <- list()
-  for(i in seq_along(umf_list)){
+  for(i in seq_along(umf_list_rrav)){
     for(j in 1:nrow(det_combos)){
       combo <- det_combos[j, ]
       det_formula <- create_det_formula(combo, det_vars)
-      model <- occuMulti(
-        stateformulas = stateformulas,
-        detformulas = as.character(rep(list(det_formula), 4)),
-        data = umf_list[[i]],
-        maxOrder = 2
-      )
+      model <- occu(formula = formula(paste("~", deparse(det_formula), "~1")), 
+                    data = umf_list_rrav[[i]])
       det_results[[length(det_results) + 1]] <- list(
         model = model,
         formula = det_formula,
@@ -629,12 +626,11 @@ fit_det_models <- function(umf_list, det_combos, stateformulas){
 }
 
 #e. Apply the function
-det_models <- fit_det_models(
-  umf_list = umf_list,
-  det_combos = det_combos,
-  stateformulas = stateformulas
+det_models_rrav <- fit_det_models_rrav(
+  umf_list_rrav = umf_list_rrav,
+  det_combos = det_combos
 )
-det_models
+det_models_rrav
 
 #-----
 #2. Compare model performance with AIC
@@ -647,114 +643,27 @@ id_best_model <- function(det){
 }
 
 #b. Apply the function
-det_model <- id_best_model(det_models)
-det_model
-#Best fitting model is ~Effort + Year
-
-#c. Compare null and detection models - UPDATE WITH QUASI-ADJUSTED NULL MODEL, NEED TO CALCULATE AIC
-null_aic <- sapply(null_quasi_results, function(x) x$AIC)
-null_aic[[1]]
-det_aic <- sapply(det_model, function(x) x$AIC)
-det_aic[[1]]
-#The detection variables have improved model fit
+det_model_rrav <- id_best_model(det_models_rrav)
+det_model_rrav
+    #Best fitting model is ~Effort + Year
 
 #-----
 #3. Assess goodness-of-fit on model residuals
 #a. Flatten the list of global models (i.e., best fitting model, in this case)
-global_det_model <- lapply(det_model, function(x) x$model)
+global_det_model_rrav <- lapply(det_model_rrav, function(x) x$model)
 
-#b. Initiate parallel computing
-cl <- makeCluster(detectCores() - 1)  
-clusterExport(cl, c("global_det_model", "fitstats"))
-clusterEvalQ(cl, library(unmarked))
-
-#c. Assess GOF for global detection models
-global_det_fit <- parLapply(cl, global_det_model, function(model){
-  parboot(model, fitstats, nsim = 100)
+#2) Calculate fit statistics
+rrav_global_det_gof <- lapply(global_det_model_rrav, function(model){
+  mb.gof.test(model, nsim = 100, plot.hist = FALSE)
 })
-stopCluster(cl)
+rrav_global_det_gof
 
-#d. Save the results of the goodness-of-fit test 
-save(global_det_fit, file = "GOF_global_det_mod.Rdata")
-load("GOF_global_det_mod.Rdata")
-
-#e. Pool the results
-det_fit_pooled <- pool_fitstats(global_det_fit)
-#Model is moderately overdispersed (Chi-square statistic = 0, c-hat = 1.35)
 
 #f. Model fit diagnostics (e.g., convergence, parameterization, SEs)
-checkConv(global_det_model[[1]])            
-sapply(global_det_model, extractCN)         #Does not have excessively high condition numbers, likely not over-parameterized
-lapply(global_det_model, checkParms)    
-#Other fit diagnostics look okay, use c-hat to adjust for overdispersion
-
-#-----
-#4. Account for overdispersion with quasi-likelihood adjustment
-#a. Apply the adjustment by specifying c-hat
-quasi_det_results <- lapply(global_det_model, function(model){
-  summaryOD(model, c.hat = 1.35, conf.level = 0.95, out.type = "confint")
-})
-quasi_det_results
-
-#-----
-#5. Pool the results with Rubin's rules
-pooled_det_quasi_results <- pool_quasi(quasi_det_results)
-pooled_det_quasi_results
-
-#-----
-#6. Predict how detection varies with independent variables
-#a. Define a range of effort values and years for prediction
-effort_range <- seq(min(rodent_imp[[1]]$Effort), max(rodent_imp[[1]]$Effort), length.out = 100)
-years <- c(0, 1)
-
-#b. Generate prediction detection probabilities for each combination of effort and year
-det_preds <- lapply(global_det_model, function(model) {
-  expand.grid(Effort = effort_range, Year = years) %>%
-    mutate(Year = as.factor(Year)) %>%
-    rowwise() %>%
-    mutate(
-      Rrav = predict(model, newdata = data.frame(Effort = Effort, Year = Year), type = "det", species = "Rrav"),
-      Rmeg = predict(model, newdata = data.frame(Effort = Effort, Year = Year), type = "det", species = "Rmeg"),
-      Mmus = predict(model, newdata = data.frame(Effort = Effort, Year = Year), type = "det", species = "Mmus"),
-      Mcal = predict(model, newdata = data.frame(Effort = Effort, Year = Year), type = "det", species = "Mcal")
-    ) %>%
-    ungroup()
-})
-print(det_preds[[1]], n = Inf)
-#Detection varies for each species based on Effort and Year, with detection probability 
-#for all species except Mmus being higher in 2020 than 2022
-
-#c. Visualize trends in detection based on effort and year
-#1) Define the species
-species <- c("Rrav", "Rmeg", "Mmus", "Mcal")
-
-#2) Combine predictions into a single data frame
-det_preds_df <- do.call(rbind, lapply(seq_along(det_preds), function(i) {
-  df <- det_preds[[i]] %>%
-    pivot_longer(cols = all_of(species), names_to = "Species", values_to = "Predicted")
-  df$Model <- i
-  return(df)
-}))
-det_preds_df$Model
-
-#3) Plot predicted detection probability vs effort for each species and each year
-ggplot(det_preds_df, aes(x = Effort, y = Predicted$Predicted, color = as.factor(Year))) +
-  geom_line(linewidth = 1) +
-  facet_wrap(~Species, scales = "free_y") +
-  labs(title = "Detection Probability vs Effort by Species and Year",
-       x = "Effort", 
-       y = "Detection Probability",
-       color = "Year") +
-  theme_minimal() +
-  scale_color_manual(values = c("0" = "blue", "1" = "red"))
-
-#4) Plot predicted detection probability vs year
-ggplot(det_preds_df, aes(x = Year, y = Predicted$Predicted, color = as.factor(Year))) +
-  geom_boxplot() +
-  labs(title = "Detection Probability by Year",
-       x = "Year", y = "Predicted Detection Probability") +
-  theme_minimal() +
-  scale_color_manual(values = c("0" = "blue", "1" = "red"))
+checkConv(global_det_model_rrav[[1]])            
+sapply(global_det_model_rrav, extractCN)         #Does not have excessively high condition numbers, likely not over-parameterized
+lapply(global_det_model_rrav, checkParms)    
+    #Other fit diagnostics look okay, use c-hat to adjust for overdispersion
 
 #-------------------------------------------------------------------------------
 #GLOBAL OCCUPANCY MODEL
@@ -769,10 +678,9 @@ model_covs <- c("Area", "Dist_urban", "Above_MHW", "Connectivity", "Connectivity
 fit_global_models_rrav <- function(umf_list_rrav){
   model_list <- list()
   state_formula <- paste("~", paste(model_covs, collapse = "+"))
-  det_formula <- c("~Effort + Year")
   for(i in seq_along(umf_list_rrav)){
     model_list[[i]] <- occu(
-      formula = as.formula(paste(det_formula, "~", state_formula)),
+      formula = formula(paste("~1", "~", deparse(state_formula))),
       control = list(maxit = 5000),
       data = umf_list_rrav[[i]]
     )
@@ -783,6 +691,7 @@ fit_global_models_rrav <- function(umf_list_rrav){
 #2) Apply the function
 global_models_rrav <- fit_global_models_rrav(umf_list_rrav)
 summary(global_models_rrav[[1]])
+detHist(global_models_rrav[[1]])
 
 #b. Rmeg
 #1) Define a function to fit the model
@@ -803,6 +712,7 @@ fit_global_models_rmeg <- function(umf_list_rmeg){
 #2) Apply the function
 global_models_rmeg <- fit_global_models_rmeg(umf_list_rmeg)
 summary(global_models_rmeg[[1]])
+detHist(global_models_rmeg[[1]])
 
 #c. Mmus
 #1) Define a function to fit the model
@@ -823,6 +733,7 @@ fit_global_models_mmus <- function(umf_list_mmus){
 #2) Apply the function
 global_models_mmus <- fit_global_models_mmus(umf_list_mmus)
 summary(global_models_mmus[[1]])
+detHist(global_models_mmus[[1]])
 
 #d. Mcal
 #1) Define a function to fit the model
@@ -843,6 +754,7 @@ fit_global_models_mcal <- function(umf_list_mcal){
 #2) Apply the function
 global_models_mcal <- fit_global_models_mcal(umf_list_mcal)
 summary(global_models_mcal[[1]])
+detHist(global_models_mcal[[1]])
 
 #-----
 #3. Assess goodness-of-fit on model residuals
@@ -850,13 +762,14 @@ summary(global_models_mcal[[1]])
 #1) Flatten the list of models
 global_models_rrav_flat <- unlist(global_models_rrav, recursive = FALSE)
 
-#2) Calculate fit statistis
+#2) Calculate fit statistics
 rrav_global_gof <- lapply(global_models_rrav_flat, function(model){
   mb.gof.test(model, nsim = 100, plot.hist = FALSE)
 })
 rrav_global_gof
     #Models are not a good fit. Chi-square statistic is huge, p-value is 0, and quantiles/c-hat are unable to be estimated
-    #Tested with Log_Area as well but Chi-square statistic increased
+    #Also tested with Log_Area, Connectivity:Log_Area, without interaction, without Area, and with latent detection,
+    #but Chi-square statistic increased with each of these adjustments
 
 #b. Rmeg
 #1) Flatten the list of models
@@ -1035,3 +948,279 @@ mean(sapply(global_models_rrav_simple, function(model) model@AIC))
 
 #e. Manually calculate c-hat?
 
+
+#-------------------------------------------------------------------------------
+#NULL MODELS
+
+#1. Fit the model
+#Rrav
+#a. Define a function to fit the model
+fit_null_models_rrav <- function(umf_list_rrav){
+  model_list <- list()
+  for(i in seq_along(umf_list_rrav)){
+    model_list[[i]] <- occu(~1 ~1, umf_list_rrav[[i]])
+  }
+  return(model_list)
+}
+
+#b. Apply the function
+null_models_rrav <- fit_null_models_rrav(umf_list_rrav)              
+summary(null_models_rrav[[1]])
+
+#Rmeg
+#a. Define a function to fit the model
+fit_null_models_rmeg <- function(umf_list_rmeg){
+  model_list <- list()
+  for(i in seq_along(umf_list_rmeg)){
+    model_list[[i]] <- occu(~1 ~1, umf_list_rmeg[[i]])
+  }
+  return(model_list)
+}
+
+#b. Apply the function
+null_models_rmeg <- fit_null_models_rmeg(umf_list_rmeg)              
+summary(null_models_rmeg[[1]])
+
+#Mmus
+#a. Define a function to fit the model
+fit_null_models_mmus <- function(umf_list_mmus){
+  model_list <- list()
+  for(i in seq_along(umf_list_mmus)){
+    model_list[[i]] <- occu(~1 ~1, umf_list_mmus[[i]])
+  }
+  return(model_list)
+}
+
+#b. Apply the function
+null_models_mmus <- fit_null_models_mmus(umf_list_mmus)              
+summary(null_models_mmus[[1]])
+
+#Mcal
+#a. Define a function to fit the model
+fit_null_models_mcal <- function(umf_list_mcal){
+  model_list <- list()
+  for(i in seq_along(umf_list_mcal)){
+    model_list[[i]] <- occu(~1 ~1, umf_list_mcal[[i]])
+  }
+  return(model_list)
+}
+
+#b. Apply the function
+null_models_mcal <- fit_null_models_mcal(umf_list_mcal)              
+summary(null_models_mcal[[1]])
+
+#-----
+#4. Back-transform to get occupancy and detection estimates
+#Rrav
+#a. Occupancy
+null_occ_rrav <- list()
+for(i in seq_along(null_models_rrav)){
+  
+  #Get occupancy estimates
+  occ_estimates <- null_models_rrav[[i]]@estimates@estimates$state
+  estimates <- occ_estimates@estimates
+  
+  #Get confidence intervals
+  occ_confint <- confint(null_models_rrav[[i]], type = "state")
+  
+  #Back-transform the estimates and confidence intervals
+  back_estimates <- plogis(estimates)
+  back_lower <- plogis(occ_confint[,1])
+  back_upper <- plogis(occ_confint[,2])
+  
+  #Combine into a data frame
+  null_occ_rrav[[i]] <- data.frame(
+    Estimate = back_estimates,
+    Lower_CI = back_lower,
+    Upper_CI = back_upper
+  )
+}
+null_occ_rrav
+    #Rrav occupancy is 0.50
+
+#b. Detection
+null_det_rrav <- list()
+for(i in seq_along(null_models_rrav)){
+  
+  #Get detection estimates
+  det_estimates <- null_models_rrav[[i]]@estimates@estimates$det
+  estimates <- det_estimates@estimates
+  
+  #Get confidence intervals
+  det_confint <- confint(null_models_rrav[[i]], type = "det")
+  
+  #Back-transform the estimates and confidence intervals
+  back_estimates <- plogis(estimates)
+  back_lower <- plogis(det_confint[,1])
+  back_upper <- plogis(det_confint[,2])
+  
+  #Combine into a data frame
+  null_det_rrav[[i]] <- data.frame(
+    Estimate = back_estimates,
+    Lower_CI = back_lower,
+    Upper_CI = back_upper
+  )
+  rownames(null_det_rrav[[i]]) <- rownames(det_estimates)
+}
+null_det_rrav
+    #Rrav detection is 0.38
+
+#a. Occupancy
+null_occ_rrav <- list()
+for(i in seq_along(null_models_rrav)){
+  
+  #Get occupancy estimates
+  occ_estimates <- null_models_rrav[[i]]@estimates@estimates$state
+  estimates <- occ_estimates@estimates
+  
+  #Get confidence intervals
+  occ_confint <- confint(null_models_rrav[[i]], type = "state")
+  
+  #Back-transform the estimates and confidence intervals
+  back_estimates <- plogis(estimates)
+  back_lower <- plogis(occ_confint[,1])
+  back_upper <- plogis(occ_confint[,2])
+  
+  #Combine into a data frame
+  null_occ_rrav[[i]] <- data.frame(
+    Estimate = back_estimates,
+    Lower_CI = back_lower,
+    Upper_CI = back_upper
+  )
+}
+null_occ_rrav
+#Rrav occupancy is 0.50
+
+#b. Detection
+null_det_rrav <- list()
+for(i in seq_along(null_models_rrav)){
+  
+  #Get detection estimates
+  det_estimates <- null_models_rrav[[i]]@estimates@estimates$det
+  estimates <- det_estimates@estimates
+  
+  #Get confidence intervals
+  det_confint <- confint(null_models_rrav[[i]], type = "det")
+  
+  #Back-transform the estimates and confidence intervals
+  back_estimates <- plogis(estimates)
+  back_lower <- plogis(det_confint[,1])
+  back_upper <- plogis(det_confint[,2])
+  
+  #Combine into a data frame
+  null_det_rrav[[i]] <- data.frame(
+    Estimate = back_estimates,
+    Lower_CI = back_lower,
+    Upper_CI = back_upper
+  )
+  rownames(null_det_rrav[[i]]) <- rownames(det_estimates)
+}
+null_det_rrav
+#Rrav detection is 0.38
+
+#a. Occupancy
+null_occ_rrav <- list()
+for(i in seq_along(null_models_rrav)){
+  
+  #Get occupancy estimates
+  occ_estimates <- null_models_rrav[[i]]@estimates@estimates$state
+  estimates <- occ_estimates@estimates
+  
+  #Get confidence intervals
+  occ_confint <- confint(null_models_rrav[[i]], type = "state")
+  
+  #Back-transform the estimates and confidence intervals
+  back_estimates <- plogis(estimates)
+  back_lower <- plogis(occ_confint[,1])
+  back_upper <- plogis(occ_confint[,2])
+  
+  #Combine into a data frame
+  null_occ_rrav[[i]] <- data.frame(
+    Estimate = back_estimates,
+    Lower_CI = back_lower,
+    Upper_CI = back_upper
+  )
+}
+null_occ_rrav
+#Rrav occupancy is 0.50
+
+#b. Detection
+null_det_rrav <- list()
+for(i in seq_along(null_models_rrav)){
+  
+  #Get detection estimates
+  det_estimates <- null_models_rrav[[i]]@estimates@estimates$det
+  estimates <- det_estimates@estimates
+  
+  #Get confidence intervals
+  det_confint <- confint(null_models_rrav[[i]], type = "det")
+  
+  #Back-transform the estimates and confidence intervals
+  back_estimates <- plogis(estimates)
+  back_lower <- plogis(det_confint[,1])
+  back_upper <- plogis(det_confint[,2])
+  
+  #Combine into a data frame
+  null_det_rrav[[i]] <- data.frame(
+    Estimate = back_estimates,
+    Lower_CI = back_lower,
+    Upper_CI = back_upper
+  )
+  rownames(null_det_rrav[[i]]) <- rownames(det_estimates)
+}
+null_det_rrav
+#Rrav detection is 0.38
+
+#Mcal
+#a. Occupancy
+null_occ_mcal <- list()
+for(i in seq_along(null_models_mcal)){
+  
+  #Get occupancy estimates
+  occ_estimates <- null_models_mcal[[i]]@estimates@estimates$state
+  estimates <- occ_estimates@estimates
+  
+  #Get confidence intervals
+  occ_confint <- confint(null_models_mcal[[i]], type = "state")
+  
+  #Back-transform the estimates and confidence intervals
+  back_estimates <- plogis(estimates)
+  back_lower <- plogis(occ_confint[,1])
+  back_upper <- plogis(occ_confint[,2])
+  
+  #Combine into a data frame
+  null_occ_mcal[[i]] <- data.frame(
+    Estimate = back_estimates,
+    Lower_CI = back_lower,
+    Upper_CI = back_upper
+  )
+}
+null_occ_mcal
+    #Mcal occupancy is 0.34
+
+#b. Detection
+null_det_mcal <- list()
+for(i in seq_along(null_models_mcal)){
+  
+  #Get detection estimates
+  det_estimates <- null_models_mcal[[i]]@estimates@estimates$det
+  estimates <- det_estimates@estimates
+  
+  #Get confidence intervals
+  det_confint <- confint(null_models_mcal[[i]], type = "det")
+  
+  #Back-transform the estimates and confidence intervals
+  back_estimates <- plogis(estimates)
+  back_lower <- plogis(det_confint[,1])
+  back_upper <- plogis(det_confint[,2])
+  
+  #Combine into a data frame
+  null_det_mcal[[i]] <- data.frame(
+    Estimate = back_estimates,
+    Lower_CI = back_lower,
+    Upper_CI = back_upper
+  )
+  rownames(null_det_mcal[[i]]) <- rownames(det_estimates)
+}
+null_det_mcal
+    #Mcal detection is 0.11
