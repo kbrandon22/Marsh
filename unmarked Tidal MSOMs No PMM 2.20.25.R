@@ -420,25 +420,25 @@ str(sitecovs)
 #3. Create unmarkedFrameOccuMulti objects
 #a. Define a function to create the umf objects
 create_umf <- function(ylist, site_covs) {
-  umf_list <- unmarkedFrameOccuMulti(
+  umf <- unmarkedFrameOccuMulti(
     y = ylist, 
     siteCovs = site_covs
   )
-  return(umf_list)
+  return(umf)
 }
 
 #b. Apply the function to create a list of umf objects (one for each dataset)
-umf_list <- create_umf(ylist, sitecovs)
-summary(umf_list)
-str(umf_list@siteCovs)
-plot(umf_list)
+umf <- create_umf(ylist, sitecovs)
+summary(umf)
+str(umf@siteCovs)
+plot(umf)
 
 #-------------------------------------------------------------------------------
 #ASSIGN FORMULAS
 
 #1. Occupancy
 #a. View fDesign matrix of occupancy formulas
-umf_fDesign <- umf_list@fDesign
+umf_fDesign <- umf@fDesign
 colnames(umf_fDesign)
 
 #b. Create vector of intercept-only occupancy formulas for the 1st and 2nd order parameters
@@ -448,6 +448,88 @@ stateformulas <- c("~1","~1","~1","~1","~1","~1","~1","~1","~1","~1")
 #2. Detection
 #a. Create vector of intercept-only detection formulas
 detformulas <- c("~1", "~1", "~1", "~1")
+
+#-------------------------------------------------------------------------------
+#NULL OCCUPANCY MODEL
+
+#1. Fit the model
+null_model <- occuMulti(
+  stateformulas = stateformulas, 
+  detformulas = detformulas,
+  data = umf,
+  maxOrder = 2
+)
+summary(null_model)
+
+#-----
+#2. Account for overdispersion with quasi-likelihood adjustment (using c-hat from global model)
+null_quasi_results <- summaryOD(null_model, c.hat = 1.85, conf.level = 0.95, out.type = "confint")
+null_quasi_results
+    #Notable findings:
+      #1. Mcal occupancy and detectability is the lowest of the four species
+      #2. Rrav and Rmeg are not likely to occupy the same sites
+      #3. Rrav:Mmus and Rmeg:Mcal are likely to occupy the same sites
+      #4. Detection is highest for Rrav but followed closely by Mmus
+
+#-----
+#3. Back-transform to get occupancy and detection estimates
+#a. Occupancy
+#1) Define a function to get latent occupancy estimates
+calc_occ <- function(model){
+  
+  #Get occupancy estimates
+  occ_estimates <- model@estimates@estimates$state
+  estimates <- occ_estimates@estimates
+  
+  #Get confidence intervals
+  occ_confint <- confint(model, type = "state")
+  
+  #Back-transform the estimates and confidence intervals
+  back_estimates <- plogis(estimates)
+  back_lower <- plogis(occ_confint[,1])
+  back_upper <- plogis(occ_confint[,2])
+  
+  #Combine into a data frame
+  null_occ <- data.frame(
+    Estimate = back_estimates,
+    Lower_CI = back_lower,
+    Upper_CI = back_upper
+  )
+}
+
+#2) Apply the function
+latent_occ <- calc_occ(null_quasi_results)
+    #Rrav occupancy is 0.40, Rmeg is 0.38, Mmus is 0.49, Mcal is 0.15
+
+#b. Detection
+#1) Define a function to get latent detection estimates
+calc_det <- function(model){
+  
+  #Get detection estimates
+  det_estimates <- model@estimates@estimates$det
+  estimates <- det_estimates@estimates
+  
+  #Get confidence intervals
+  det_confint <- confint(model, type = "det")
+  
+  #Back-transform the estimates and confidence intervals
+  back_estimates <- plogis(estimates)
+  back_lower <- plogis(det_confint[,1])
+  back_upper <- plogis(det_confint[,2])
+  
+  #Combine into a data frame
+  null_det <- data.frame(
+    Estimate = back_estimates,
+    Lower_CI = back_lower,
+    Upper_CI = back_upper
+  )
+  rownames(null_det) <- rownames(det_estimates)
+}
+
+#2. Apply the function
+latent_det <- calc_det(null_quasi_results)
+    #Rrav detection is 0.38, Rmeg is 0.30, Mmus is 0.36, Mcal is 0.11
+    #Detection probabilities are low, consider modeling with covariates (e.g., Effort, Year)
 
 #-------------------------------------------------------------------------------
 #DETECTION MODELS
@@ -475,7 +557,7 @@ create_det_formula <- function(combo, covariates){
 }
 
 #d. Define a function to fit the models 
-fit_det_models <- function(umf_list, det_combos, stateformulas){
+fit_det_models <- function(umf, det_combos, stateformulas){
   det_results <- list()
   for(i in 1:nrow(det_combos)){
     combo <- det_combos[i, ]
@@ -483,7 +565,7 @@ fit_det_models <- function(umf_list, det_combos, stateformulas){
     model <- occuMulti(
       stateformulas = stateformulas,
       detformulas = as.character(rep(list(det_formula), 4)),
-      data = umf_list,
+      data = umf,
       maxOrder = 2
     )
     det_results[[length(det_results) + 1]] <- list(
@@ -497,7 +579,7 @@ fit_det_models <- function(umf_list, det_combos, stateformulas){
 
 #e. Apply the function
 det_models <- fit_det_models(
-  umf_list = umf_list,
+  umf = umf,
   det_combos = det_combos,
   stateformulas = stateformulas
 )
@@ -635,315 +717,102 @@ model_covs <- c("Area", "Dist_urban", "Above_MHW", "Connectivity", "Connectivity
 #-----
 #2. Fit the model
 #a. Define a function to fit the model
-fit_global_models <- function(umf_list){
-  model_list <- list()
+fit_global_model <- function(umf){
   state_formula <- paste("~", paste(model_covs, collapse = "+"))
-  for(i in seq_along(umf_list)){
-    model_list[[i]] <- occuMulti(
-      stateformulas = as.character(rep(state_formula, 10)),
-      detformulas = as.character(rep("~Effort + Year", 4)),
-      control = list(maxit = 5000),
-      maxOrder = 2,
-      starts = rnorm(72, mean = 0, sd = 0.1),
-      data = umf_list[[i]]
-    )
-  }
-  return(model_list)
+  model <- occuMulti(
+    stateformulas = as.character(rep(state_formula, 10)),
+    detformulas = as.character(rep("~Effort + Year", 4)),
+    control = list(maxit = 5000),
+    maxOrder = 2,
+    starts = rnorm(72, mean = 0, sd = 0.1),
+    data = umf
+  )
 }
 
 #b. Apply the function
-global_models <- fit_global_models(umf_list)
-save(global_models, file = "Global_models.Rdata")
-load("Global_models.Rdata")
-summary(global_models[[1]])
-#Several estimates and SEs are large, use penalized likelihood
+global_model <- fit_global_model(umf)
+save(global_model, file = "Global_model.Rdata")
+load("Global_model.Rdata")
+summary(global_model)
+    #Several estimates and SEs are large, use penalized likelihood
 
 #-----
 #3. Fit the model with penalized likelihood
 #a. Define a function to penalize the models
-penalize_model <- function(models){
-  pen_model_results <- list()
-  for(i in seq_along(models)){
-    pen_model_results[[i]] <- optimizePenalty(
-      models[[i]],
-      penalties = c(0.01, 0.1, 0.2, 0.33, 1, 2)
-    )
-  }
-  return(pen_model_results)
-}
+global_pen_model <- optimizePenalty(global_model, penalties = c(0.01, 0.1, 0.2, 0.33, 1, 2))
+save(global_pen_model, file = "Global_pen_model.Rdata")
+load("Global_pen_model.Rdata")
 
-#b. Apply the function
-global_pen_models <- lapply(global_models, penalize_model)
-save(global_pen_models, file = "Global_pen_models.Rdata")
-load("Global_pen_models.Rdata")
-
-mean(sapply(global_models, function(model) model@AIC))
-mean(sapply(global_pen_models, function(model) model@AIC))
-#Unpenalized may be better fit with lower AIC (8998 vs 9051)
+global_model@AIC
+global_pen_model@AIC
+    #Unpenalized may be better fit with lower AIC (8998 vs 9051)
 
 #-----
 #4. Assess goodness-of-fit on model residuals
-#a. Flatten the list of models
-global_pen_models_flat <- unlist(global_pen_models, recursive = FALSE)
-global_models_flat <- unlist(global_models, recursive = FALSE)
-
-#b. Initiate parallel computing - this needs to be reinitialized for each parallel computing segment
+#a. Initiate parallel computing - this needs to be reinitialized for each parallel computing segment
 cl <- makeCluster(detectCores() - 1)  
-clusterExport(cl, c("global_models_flat", "fitstats", "parboot"))
+clusterExport(cl, c("global_model", "fitstats", "parboot"))
 clusterEvalQ(cl, library(unmarked))
 
-#c. Compute GOF measures with parametric bootstrapping and save the results
-global_fit <- parLapply(cl, global_models_flat, function(model){
-  parboot(model, fitstats, nsim = 100)
+#b. Compute GOF measures with parametric bootstrapping and save the results
+global_fit <- parSapply(cl, 1:100, function(i){
+  parboot(global_model, fitstats, nsim = 100)
 })
 stopCluster(cl)
-save(global_fit, file = "GOF_global_models.Rdata")
-load("GOF_global_models.Rdata")
-
-#d. Compute and pool c-hat across imputed models
-global_fit_pooled <- pool_fitstats(global_fit)
-global_fit_pooled
-#Model is moderately overdispersed (Chi-square p = 0, c-hat = 1.85), check other fit diagnostics
+save(global_fit, file = "GOF_global_model.Rdata")
+load("GOF_global_model.Rdata")
+    #Model is moderately overdispersed (Chi-square p = 0, c-hat = 1.85), check other fit diagnostics
 
 #e. Assess other model fit diagnostics (e.g., convergence, parameterization, SEs)
-checkConv(global_models[[1]])            
-sapply(global_models, extractCN)         #Condition numbers are relatively high, but model is likely not overparameterized
-lapply(global_models, checkParms)
-#Other fit diagnostics look okay, use c-hat to account for overdispersion
+checkConv(global_model)            
+extractCN(global_model)         #Condition numbers are relatively high, but model is likely not overparameterized
+checkParms(global_model)
+    #Other fit diagnostics look okay, use c-hat to account for overdispersion
 
 
 ##########
 #TEST: PENALIZED MODEL GOF - WHICH IS A BETTER FIT TO THE DATA, PENALIZED OR NON-PENALIZED??
 cl <- makeCluster(detectCores() - 1)
-clusterExport(cl, c("global_pen_models_flat", "fitstats", "parboot"))
+clusterExport(cl, c("global_pen_model", "fitstats", "parboot"))
 clusterEvalQ(cl, library(unmarked))
 
-global_pen_fit <- parLapply(cl, global_pen_models_flat, function(model){
+global_pen_fit <- parSapply(cl, global_pen_model, function(model){
   parboot(model, fitstats, nsim = 100)
 })
 stopCluster(cl)
-save(global_pen_fit, file = "GOF_global_pen_models.Rdata")
-load("GOF_global_pen_models.Rdata")
+save(global_pen_fit, file = "GOF_global_pen_model.Rdata")
+load("GOF_global_pen_model.Rdata")
 
-global_pen_fit_pooled <- pool_fitstats(global_pen_fit)
-global_pen_fit_pooled
-
-checkConv(global_pen_models[[1]])            
-sapply(global_pen_models, extractCN)         #Condition numbers are relatively high, but model is likely not overparameterized
-lapply(global_pen_models, checkParms)
+checkConv(global_pen_model)            
+extractCN(global_pen_models)         #Condition numbers are relatively high, but model is likely not overparameterized
+checkParms(global_pen_models)
 ##########
-
-#-----
-#DO DURING MODEL SELECTION INSTEAD??
-#5. Account for overdispersion with quasi-likelihood adjustment
-global_quasi_results <- lapply(global_pen_models, function(model){
-  summaryOD(model, c.hat = 1.77, conf.level = 0.95, out.type = "confint")
-})
-global_quasi_results
-global_pen_models
-
-#-----
-#NOT APPROPRIATE BECAUSE MODELS ARE NON-PARAMETRIC DUE TO PENALIZATION AND QUASI-ADJUSTMENT - EXCLUDE???
-#6. Pool the results with Rubin's rules
-#a. Define a function to pool the results of the quasi-adjusted models
-pool_quasi <- function(quasi_list){
-  estimates <- sapply(quasi_list, function(model) model$outMat[,1])
-  SE <- sapply(quasi_list, function(model) model$outMat[,2])
-  
-  #Calculate variance
-  within_var <- rowMeans(SE^2)
-  between_var <- apply(SE, 1, var)
-  total_var <- within_var + (1+1/length(quasi_list))*between_var
-  
-  #Pool results
-  pooled_estimate <- rowMeans(estimates)
-  pooled_SE <- sqrt(total_var)
-  pooled_z <- pooled_estimate / pooled_SE
-  pooled_p <- 2*(1-pnorm(abs(pooled_z)))
-  pooled_lower <- pooled_estimate - 1.96*pooled_SE
-  pooled_upper <- pooled_estimate + 1.96*pooled_SE
-  
-  #Return the pooled results in a data frame
-  data.frame(
-    Estimate = pooled_estimate,
-    SE = pooled_SE, 
-    Z = pooled_z,
-    p_value = pooled_p,
-    Lower_CI = pooled_lower, 
-    Upper_CI = pooled_upper
-  )
-}
-
-#b. Apply the function
-pooled_global_quasi_results <- pool_quasi(global_quasi_results)
-pooled_global_quasi_results
-#Area, Connectivity, and Area:Connectivity positively affect occupancy of Rrav:Rmeg
-#Effort negatively affects Mmus detection
-#Year negatively affects Rmeg and Mcal detection
-
-#-------------------------------------------------------------------------------
-#NULL OCCUPANCY MODEL
-
-#1. Fit the model
-#a. Define a function to fit the model
-fit_null_models <- function(umf_list, stateformulas, detformulas){
-  model_list <- list()
-  for(i in seq_along(umf_list)){
-    model_list[[i]] <- occuMulti(
-      stateformulas = stateformulas, 
-      detformulas = detformulas,
-      data = umf_list[[i]],
-      maxOrder = 2
-    )
-  }
-  return(model_list)
-}
-
-#b. Apply the function
-null_models <- fit_null_models(umf_list, stateformulas, detformulas)              
-summary(null_models[[1]])
-
-#-----
-#2. Account for overdispersion with quasi-likelihood adjustment (using c-hat from global model)
-null_quasi_results <- lapply(null_models, function(model){
-  summaryOD(model, c.hat = 1.77, conf.level = 0.95, out.type = "confint")
-})
-null_quasi_results
-
-#-----
-#NOT ACCEPTABLE??
-#3. Pool results with Rubin's rules for variance estimation
-null_results <- pool_quasi(null_quasi_results)
-null_results
-#Notable findings:
-#1. Mcal occupancy and detectability is the lowest of the four species
-#2. Rrav and Rmeg are not likely to occupy the same sites
-#3. Rrav:Mmus and Rmeg:Mcal are likely to occupy the same sites
-#4. Detection is highest for Rrav but followed closely by Mmus
-
-#-----
-#4. Back-transform to get occupancy and detection estimates
-#a. Occupancy
-null_occ <- list()
-for(i in seq_along(null_quasi_results)){
-  
-  #Get occupancy estimates
-  occ_estimates <- null_models[[i]]@estimates@estimates$state
-  estimates <- occ_estimates@estimates
-  
-  #Get confidence intervals
-  occ_confint <- confint(null_models[[i]], type = "state")
-  
-  #Back-transform the estimates and confidence intervals
-  back_estimates <- plogis(estimates)
-  back_lower <- plogis(occ_confint[,1])
-  back_upper <- plogis(occ_confint[,2])
-  
-  #Combine into a data frame
-  null_occ[[i]] <- data.frame(
-    Estimate = back_estimates,
-    Lower_CI = back_lower,
-    Upper_CI = back_upper
-  )
-}
-null_occ
-#Rrav occupancy is 0.40, Rmeg is 0.38, Mmus is 0.49, Mcal is 0.15
-
-#b. Detection
-null_det <- list()
-for(i in seq_along(null_quasi_results)){
-  
-  #Get detection estimates
-  det_estimates <- null_models[[i]]@estimates@estimates$det
-  estimates <- det_estimates@estimates[1:4]
-  
-  #Get confidence intervals
-  det_confint <- confint(null_models[[i]], type = "det")
-  
-  #Back-transform the estimates and confidence intervals
-  back_estimates <- plogis(estimates)
-  back_lower <- plogis(det_confint[,1])
-  back_upper <- plogis(det_confint[,2])
-  
-  #Combine into a data frame
-  null_det[[i]] <- data.frame(
-    Estimate = back_estimates,
-    Lower_CI = back_lower,
-    Upper_CI = back_upper
-  )
-  rownames(null_det[[i]]) <- rownames(det_estimates)
-}
-null_det
-#Rrav detection is 0.38, Rmeg is 0.30, Mmus is 0.36, Mcal is 0.11
-#Detection probabilities are low, consider modeling with covariates (e.g., Effort, Year)
 
 #-------------------------------------------------------------------------------
 #UNIVARIATE OCCUPANCY MODELS
 
 #1. Fit the model
 #a. Define a function to fit the model
-fit_uni_models <- function(model_covs, umf_list){
+fit_uni_models <- function(model_covs, umf){
   models <- list()
   for(cov in model_covs){
     state_formula <- paste("~", cov)
-    cov_models <- list()
-    for(i in seq_along(umf_list)){
-      cov_models[[i]] <- occuMulti(
-        stateformulas = as.character(rep(state_formula, 10)),
-        detformulas = as.character(rep("~Effort + Year", 4)),
-        control = list(maxit = 5000),
-        maxOrder = 2,
-        starts = rnorm(32, mean = 0, sd = 0.1),
-        data = umf_list[[i]]
-      )
-    }
-    models[[cov]] <- cov_models
+    models[[cov]] <- occuMulti(
+      stateformulas = as.character(rep(state_formula, 10)),
+      detformulas = as.character(rep("~Effort + Year", 4)),
+      control = list(maxit = 5000),
+      maxOrder = 2,
+      starts = rnorm(32, mean = 0, sd = 0.1),
+      data = umf
+    )
   }
   return(models)
 }
 
 #b. Apply the function
-uni_models <- fit_uni_models(model_covs, umf_list)
+uni_models <- fit_uni_models(model_covs, umf)
 save(uni_models, file = "Uni_models.Rdata")
 load("Uni_models.Rdata")
-
-#-----
-#2. Adjust for overdispersion
-#a. Apply the adjustment by specifying c-hat (from global model)
-quasi_uni_results <- lapply(uni_models, function(model_list){
-  lapply(model_list, function(model){
-    summaryOD(model, c.hat = 1.77, conf.level = 0.95, out.type = "confint")
-  })
-})
-quasi_uni_results
-
-#-----
-#3. Pool the adjusted results with Rubin's rules
-#a. Flatten the quasi-adjusted model output 
-quasi_uni_list <- unlist(quasi_uni_results, recursive = FALSE)
-
-#b. Define a function to pool outputs for each independent variable
-pool_uni <- function(quasi_uni_list, pool_quasi){
-  results <- list()
-  
-  #Extract and group the quasi output by independent variable
-  name <- unique(sub("\\d+$", "", names(quasi_uni_list)))
-  uni_cov <- setNames(lapply(name, function(cov){
-    quasi_uni_list[grep(paste0("^", cov), names(quasi_uni_list))]
-  }), name)
-  
-  #Pool the results
-  for(cov in names(uni_cov)){
-    cov_data <- uni_cov[[cov]]
-    pooled_results <- pool_quasi(cov_data)
-    results[[cov]] <- pooled_results
-  }
-  return(results)
-}
-
-#c. Apply the function
-uni_results <- pool_uni(quasi_uni_list, pool_quasi)
-uni_results
 
 #-------------------------------------------------------------------------------
 #BIVARIATE MODELS
@@ -954,78 +823,28 @@ bi_combos <- combinat::combn(model_covs, 2, simplify = FALSE)
 #-----
 #2. Fit the models
 #a. Define a function to fit the model
-fit_bi_models <- function(bi_combos, umf_list){
+fit_bi_models <- function(bi_combos, umf){
   models <- list()
   for(combo in bi_combos){
     state_formula <- paste("~", paste(combo,  collapse = "+"))
     combo_name <- paste(combo, collapse = "+")
-    cov_models <- list()
-    for(i in seq_along(umf_list)){
-      cov_models[[i]] <- occuMulti(
-        stateformulas = as.character(rep(state_formula, 10)),
-        detformulas = as.character(rep("~Effort + Year", 4)),
-        control = list(maxit = 5000),
-        maxOrder = 2,
-        starts = rnorm(42, mean = 0, sd = 0.15),
-        data = umf_list[[i]]
-      )
-    }
-    models[[combo_name]] <- cov_models
+    models[[combo_name]] <- occuMulti(
+      stateformulas = as.character(rep(state_formula, 10)),
+      detformulas = as.character(rep("~Effort + Year", 4)),
+      control = list(maxit = 5000),
+      maxOrder = 2,
+      starts = rnorm(42, mean = 0, sd = 0.15),
+      data = umf
+    )
   }
   return(models)
 }
 
 #b. Apply the function
-bi_models <- fit_bi_models(bi_combos, umf_list)
+bi_models <- fit_bi_models(bi_combos, umf)
 save(bi_models, file = "Bi_models.Rdata")
 load("Bi_models.Rdata")
-#Several estimates and SEs are large, use penalized likelihood
-
-#-----
-#3. Fit the model with penalized likelihood
-bi_pen_models <- lapply(bi_models, penalize_model)
-save(bi_pen_models, file = "Bi_pen_models.Rdata")
-load("Bi_pen_models.Rdata")
-
-#-----
-#4. Adjust for overdispersion
-#a. Apply the adjustment by specifying c-hat (from global model)
-quasi_bi_results <- lapply(bi_pen_models, function(model_list){
-  lapply(model_list, function(model){
-    summaryOD(model, c.hat = 1.77, conf.level = 0.95, out.type = "confint")
-  })
-})
-quasi_bi_results
-
-#-----
-#5. Pool the adjusted results with Rubin's rules
-#a. Flatten the quasi-adjusted model output 
-quasi_bi_list <- unlist(quasi_bi_results, recursive = FALSE)
-names(quasi_bi_list)
-
-#b. Define a function to pool outputs for each independent variable
-pool_bi <- function(quasi_bi_list, pool_quasi){
-  results <- list()
-  
-  #Extract and group the quasi output by independent variable
-  bi_names <- unique(sub("\\d+$", "", names(quasi_bi_list)))
-  bi_pair <- setNames(lapply(bi_names, function(pair) {
-    quasi_bi_list[grep(paste0("^", gsub("\\+", "\\\\+", pair), "[0-9]+$"), 
-                       names(quasi_bi_list), value = TRUE)]
-  }), bi_names)
-  
-  #Pool the results
-  for(pair in names(bi_pair)){
-    cov_data <- bi_pair[[pair]]
-    pooled_results <- pool_quasi(cov_data)
-    results[[pair]] <- pooled_results
-  }
-  return(results)
-}
-
-#c. Apply the function
-bi_results <- pool_bi(quasi_bi_list, pool_quasi)
-bi_results
+    #Several estimates and SEs are large, use penalized likelihood
 
 #-------------------------------------------------------------------------------
 #TRIVARIATE MODELS
@@ -1036,77 +855,27 @@ tri_combos <- combinat::combn(model_covs, 3, simplify = FALSE)
 #-----
 #2. Fit the models
 #a. Define a function to fit the model
-fit_tri_models <- function(tri_combos, umf_list){
+fit_tri_models <- function(tri_combos, umf){
   models <- list()
   for(combo in tri_combos){
     state_formula <- paste("~", paste(combo,  collapse = "+"))
     combo_name <- paste(combo, collapse = "+")
-    cov_models <- list()
-    for(i in seq_along(umf_list)){
-      cov_models[[i]] <- occuMulti(
-        stateformulas = as.character(rep(state_formula, 10)),
-        detformulas = as.character(rep("~Effort + Year", 4)),
-        control = list(maxit = 5000),
-        maxOrder = 2,
-        starts = rnorm(52, mean = 0, sd = 0.15),
-        data = umf_list[[i]]
-      )
-    }
-    models[[combo_name]] <- cov_models
+    models[[combo_name]] <- occuMulti(
+      stateformulas = as.character(rep(state_formula, 10)),
+      detformulas = as.character(rep("~Effort + Year", 4)),
+      control = list(maxit = 5000),
+      maxOrder = 2,
+      starts = rnorm(52, mean = 0, sd = 0.15),
+      data = umf
+    )
   }
   return(models)
 }
 
 #b. Apply the function
-tri_models <- fit_tri_models(tri_combos, umf_list)
+tri_models <- fit_tri_models(tri_combos, umf)
 save(tri_models, file = "Tri_models.Rdata")
 load("Tri_models.Rdata")
-
-#-----
-#3. Fit the model with penalized likelihood
-tri_pen_models <- lapply(tri_models, penalize_model)
-save(tri_pen_models, file = "Tri_pen_models.Rdata")
-load("Tri_pen_models.Rdata")
-
-#-----
-#4. Adjust for overdispersion
-#a. Apply the adjustment by specifying c-hat (from global model)
-quasi_tri_results <- lapply(tri_pen_models, function(model_list){
-  lapply(model_list, function(model){
-    summaryOD(model, c.hat = 1.77, conf.level = 0.95, out.type = "confint")
-  })
-})
-quasi_tri_results
-
-#-----
-#5. Pool the adjusted results with Rubin's rules
-#a. Flatten the quasi-adjusted model output 
-quasi_tri_list <- unlist(quasi_tri_results, recursive = FALSE)
-names(quasi_tri_list)
-
-#b. Define a function to pool outputs for each independent variable
-pool_tri <- function(quasi_tri_list, pool_quasi){
-  results <- list()
-  
-  #Extract and group the quasi output by independent variable
-  tri_names <- unique(sub("\\d+$", "", names(quasi_tri_list)))
-  tri_combo <- setNames(lapply(tri_names, function(tri) {
-    quasi_tri_list[grep(paste0("^", gsub("\\+", "\\\\+", tri), "[0-9]+$"), 
-                        names(quasi_tri_list), value = TRUE)]
-  }), tri_names)
-  
-  #Pool the results
-  for(tri in names(tri_combo)){
-    cov_data <- tri_combo[[tri]]
-    pooled_results <- pool_quasi(cov_data)
-    results[[tri]] <- pooled_results
-  }
-  return(results)
-}
-
-#c. Apply the function
-tri_results <- pool_tri(quasi_tri_list, pool_quasi)
-tri_results
 
 #-------------------------------------------------------------------------------
 #QUADVARIATE MODELS
@@ -1117,92 +886,38 @@ quad_combos <- combinat::combn(model_covs, 4, simplify = FALSE)
 #-----
 #2. Fit the models
 #a. Define a function to fit the model
-fit_quad_models <- function(quad_combos, umf_list){
+fit_quad_models <- function(quad_combos, umf){
   models <- list()
   for(combo in quad_combos){
     state_formula <- paste("~", paste(combo,  collapse = "+"))
     combo_name <- paste(combo, collapse = "+")
-    cov_models <- list()
-    for(i in seq_along(umf_list)){
-      cov_models[[i]] <- occuMulti(
-        stateformulas = as.character(rep(state_formula, 10)),
-        detformulas = as.character(rep("~Effort + Year", 4)),
-        control = list(maxit = 5000),
-        maxOrder = 2,
-        starts = rnorm(62, mean = 0, sd = 0.15),
-        data = umf_list[[i]]
-      )
-    }
-    models[[combo_name]] <- cov_models
+    models[[combo_name]] <- occuMulti(
+      stateformulas = as.character(rep(state_formula, 10)),
+      detformulas = as.character(rep("~Effort + Year", 4)),
+      control = list(maxit = 5000),
+      maxOrder = 2,
+      starts = rnorm(62, mean = 0, sd = 0.15),
+      data = umf
+    )
   }
   return(models)
 }
 
 #b. Apply the function
-quad_models <- fit_quad_models(quad_combos, umf_list)
+quad_models <- fit_quad_models(quad_combos, umf)
 save(quad_models, file = "Quad_models.Rdata")
 load("Quad_models.Rdata")
-
-#-----
-#3. Fit the model with penalized likelihood
-quad_pen_models <- lapply(quad_models, penalize_model)
-save(quad_pen_models, file = "Quad_pen_models.Rdata")
-load("Quad_pen_models.Rdata")
-
-#-----
-#4. Adjust for overdispersion
-#a. Apply the adjustment by specifying c-hat (from global model)
-quasi_quad_results <- lapply(quad_pen_models, function(model_list){
-  lapply(model_list, function(model){
-    summaryOD(model, c.hat = 1.77, conf.level = 0.95, out.type = "confint")
-  })
-})
-quasi_quad_results
-
-#-----
-#5. Pool the adjusted results with Rubin's rules
-#a. Flatten the quasi-adjusted model output 
-quasi_quad_list <- unlist(quasi_quad_results, recursive = FALSE)
-names(quasi_quad_list)
-
-#b. Define a function to pool outputs for each independent variable
-pool_quad <- function(quasi_quad_list, pool_quasi){
-  results <- list()
-  
-  #Extract and group the quasi output by independent variable
-  quad_names <- unique(sub("\\d+$", "", names(quasi_quad_list)))
-  quad_combo <- setNames(lapply(quad_names, function(quad) {
-    quasi_quad_list[grep(paste0("^", gsub("\\+", "\\\\+", quad), "[0-9]+$"), 
-                         names(quasi_quad_list), value = TRUE)]
-  }), quad_names)
-  
-  #Pool the results
-  for(quad in names(quad_combo)){
-    cov_data <- quad_combo[[quad]]
-    pooled_results <- pool_quasi(cov_data)
-    results[[quad]] <- pooled_results
-  }
-  return(results)
-}
-
-#c. Apply the function
-quad_results <- pool_quad(quasi_quad_list, pool_quasi)
-quad_results
 
 #-------------------------------------------------------------------------------
 #MODEL SELECTION
 
 #1. Select the best-fitting model(s) for interpretation
-#ba Store models in a list
-models <- list(null_models, global_models, global_det_model)
+#a. Create a list of candidate models
+models <- c(list(null_model = null_model, global_model = global_model, det_model = det_model),
+            uni_models, bi_models, tri_models, quad_models)
 
-#c. Assign names to each model and store in a list
-modnames <- c("null_model", "det_model", "global_model", "uni_model", "bi_model", "tri_model", "quad_model")
-modlist <- list("null_model" = null_model, "det_model" = det_model, "global_model" = global_model,
-                "uni_model" = uni_model, "bi_model" = bi_model, "tri_model" = tri_model, "quad_model" = quad_model) 
-
-#d. Perform model selection 
-top_models <- aictab(cand.set = modlist, c.hat = 1.77)
+#b. Perform model selection 
+top_models <- aictab(cand.set = models, c.hat = 1.85)
 
 #2. Compare top fitting models (if more than one)
 #a. Use evidence ratio of Aikake weights to compare models
@@ -1224,12 +939,12 @@ model_covs
 
 #b. Explore covariate values
 #1) Define a function to generate a range of possible covariate values
-extract_range <- function(umf_list, model_covs){
+extract_range <- function(umf, model_covs){
   range <- list()
   for(cov in model_covs){
     cov_range <- list()
-    for(i in seq_along(umf_list)){
-      cov_range[[i]] <- range(siteCovs(umf_list[[i]])[[cov]], na.rm = TRUE)
+    for(i in seq_along(umf)){
+      cov_range[[i]] <- range(siteCovs(umf[[i]])[[cov]], na.rm = TRUE)
     }
     range[[cov]] <- cov_range
   }
@@ -1237,15 +952,15 @@ extract_range <- function(umf_list, model_covs){
 }
 
 #2) Apply the function
-range <- extract_range(umf_list, model_covs)
+range <- extract_range(umf, model_covs)
 
 #c. Explore covariate values based on the range
 #1) Define a function to generate a sequence of possible covariate values based on the range
-extract_seq <- function(umf_list, model_covs){
+extract_seq <- function(umf, model_covs){
   seq <- list()
   for(cov in model_covs){
     seq_range <- list()
-    for(i in seq_along(umf_list)){
+    for(i in seq_along(umf)){
       cov_seq[[i]] <- seq(range[[i]][1], range[[i]][2], length.out = 100)
     }
     seq[[cov]] <- cov_seq
@@ -1254,19 +969,19 @@ extract_seq <- function(umf_list, model_covs){
 }
 
 #2) Apply the function
-seq <- extract_seq(umf_list, model_covs)
+seq <- extract_seq(umf, model_covs)
 
 #d. Assess how changes in a single variable affect occupancy
 #1) Define a function to generate new data
-generate_data <- function(umf_list, model_covs, range, seq){
+generate_data <- function(umf, model_covs, range, seq){
   new_data_list <- list()
   for(cov in model_covs){
     new_data <- data.frame()
-    for(i in seq_along(umf_list)){
+    for(i in seq_along(umf)){
       cov_seq <- seq[[cov]][[i]]
       mean_vals <- sapply(model_covs, function(var){
         if(var != cov){
-          return(ean(siteCovs(umf_list[[i]])[[var]], na.rm = TRUE))
+          return(ean(siteCovs(umf[[i]])[[var]], na.rm = TRUE))
         } else {
           return(NULL)
         }
@@ -1281,11 +996,11 @@ generate_data <- function(umf_list, model_covs, range, seq){
 }
 
 #2) Apply the function
-nd <- generate_data(umf_list, model_covs, range, seq)
+nd <- generate_data(umf, model_covs, range, seq)
 
 #e. Predict species occupancy in relation to each independent variable
 #1) Define a function to predict occupancy
-predict_occ <- function(model, umf_list, species_list, model_covs, range, seq){
+predict_occ <- function(model, umf, species_list, model_covs, range, seq){
   preds <- list()
   for(species in species_list){
     species_preds <- data.frame()
@@ -1302,7 +1017,7 @@ predict_occ <- function(model, umf_list, species_list, model_covs, range, seq){
 }
 
 #2) Apply the function and view predictions for all species
-species_preds <- predict_occ(model, species_list, model_covs, umf_list, nd)
+species_preds <- predict_occ(model, species_list, model_covs, umf, nd)
 species_preds$Rrav
 species_preds$Rmeg
 species_preds$Mmus
